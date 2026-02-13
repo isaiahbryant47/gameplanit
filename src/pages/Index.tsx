@@ -11,7 +11,7 @@ const steps = [
   {
     icon: Heart,
     title: 'Share your reality',
-    desc: 'Tell us about your grade, schedule, budget, transportation, and goals. We meet you where you are — no judgment.',
+    desc: 'Tell us the subject, your current level, the result you want, and when you want it by. Add your schedule, budget, and transportation too. The more specific, the better your plan — no judgment.',
   },
   {
     icon: CalendarDays,
@@ -78,8 +78,14 @@ const sampleWeek = {
     'Complete one career-interest quiz and save results.',
     'Share what you found with a caregiver or mentor.',
   ],
-  resources: [
-    'Khan Academy — khanacademy.org',
+  featuredResource: {
+    name: 'Khan Academy — Algebra Practice',
+    access: ['Go to khanacademy.org and tap "Courses."', 'Search "Algebra 1" and select the course.', 'No account needed, but signing up saves progress.'],
+    use: ['Complete the "Equations & Inequalities" unit quiz (20 min).', 'Review any missed problems using the hints feature.'],
+    time: '~30 minutes',
+    done: 'You finish the unit quiz and score 70 %+.',
+  },
+  otherResources: [
     'SEPTA student fare info',
     'Local library teen coding workshops',
   ],
@@ -104,9 +110,17 @@ export default function Index() {
             and a clearer future
           </h1>
 
-          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 leading-relaxed">
             GameplanIT builds a 12-week action plan around <em>your</em> schedule, budget, and transportation — so every student has a path forward, not just a pep talk.
           </p>
+
+          <div className="max-w-md mx-auto mb-10 rounded-lg border border-border bg-card/60 px-5 py-4 text-left text-sm">
+            <p className="font-medium text-foreground mb-2">The more specific you are, the better your plan.</p>
+            <div className="flex flex-col gap-1 text-muted-foreground">
+              <span>❌ <span className="italic">"Better grades"</span></span>
+              <span>✅ <span className="font-medium text-foreground">"Raise Algebra from C to B by May"</span></span>
+            </div>
+          </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button asChild size="lg" className="text-base px-8 py-6 shadow-md">
@@ -188,6 +202,34 @@ export default function Index() {
         </div>
       </section>
 
+      {/* ─── GOAL EXAMPLES ─── */}
+      <section className="py-14 bg-background">
+        <div className="max-w-4xl mx-auto px-6">
+          <h2 className="text-2xl font-bold text-foreground text-center mb-2">
+            Specific goals = stronger plans
+          </h2>
+          <p className="text-muted-foreground text-center max-w-xl mx-auto mb-8 text-sm">
+            You don't need a perfect goal — but the more detail you share, the more useful your plan becomes. If you're not sure, we'll help you get specific.
+          </p>
+          <div className="grid sm:grid-cols-3 gap-4">
+            {[
+              { vague: '"Better grades"', strong: '"Raise my Algebra grade from C to B by May"' },
+              { vague: '"Get into college"', strong: '"Apply to 3 nursing programs in PA by December"' },
+              { vague: '"Learn coding"', strong: '"Finish a beginner Python course on Khan Academy in 6 weeks"' },
+            ].map((ex, i) => (
+              <Card key={i} className="border-border shadow-sm">
+                <CardContent className="pt-5 pb-5 space-y-2">
+                  <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Vague</div>
+                  <p className="text-sm text-muted-foreground italic">{ex.vague}</p>
+                  <div className="text-xs font-semibold uppercase tracking-widest text-primary mt-2">Specific</div>
+                  <p className="text-sm text-foreground font-medium">{ex.strong}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ─── PLAN PREVIEW ─── */}
       <section id="plan-preview" className="py-20 bg-secondary/30">
         <div className="max-w-4xl mx-auto px-6">
@@ -195,7 +237,7 @@ export default function Index() {
             Here's what a week actually looks like
           </h2>
           <p className="text-muted-foreground text-center max-w-xl mx-auto mb-12">
-            No vague advice. Every week has clear actions, curated resources, and a milestone to hit.
+            Not just links — step-by-step instructions to access and use each resource, plus a milestone to hit.
           </p>
 
           <Card className="border-border shadow-md overflow-hidden">
@@ -225,13 +267,38 @@ export default function Index() {
                 </div>
                 <div>
                   <h4 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
-                    <BookOpen className="w-3.5 h-3.5" /> Resources
+                    <BookOpen className="w-3.5 h-3.5" /> Resources (how to access + use)
                   </h4>
-                  <ul className="space-y-2">
-                    {sampleWeek.resources.map((r, i) => (
-                      <li key={i} className="text-sm text-muted-foreground">• {r}</li>
-                    ))}
-                  </ul>
+                  <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+                    <p className="text-sm font-semibold text-foreground">{sampleWeek.featuredResource.name}</p>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">How to access</p>
+                      <ol className="list-decimal list-inside space-y-0.5">
+                        {sampleWeek.featuredResource.access.map((s, i) => (
+                          <li key={i} className="text-sm text-muted-foreground">{s}</li>
+                        ))}
+                      </ol>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">How to use it this week</p>
+                      <ol className="list-decimal list-inside space-y-0.5">
+                        {sampleWeek.featuredResource.use.map((s, i) => (
+                          <li key={i} className="text-sm text-muted-foreground">{s}</li>
+                        ))}
+                      </ol>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t border-border">
+                      <span>⏱ {sampleWeek.featuredResource.time}</span>
+                      <span>✅ Done = {sampleWeek.featuredResource.done}</span>
+                    </div>
+                  </div>
+                  {sampleWeek.otherResources.length > 0 && (
+                    <ul className="mt-3 space-y-1">
+                      {sampleWeek.otherResources.map((r, i) => (
+                        <li key={i} className="text-sm text-muted-foreground">• {r}</li>
+                      ))}
+                    </ul>
+                  )}
                   <div className="mt-5 rounded-lg bg-accent/50 p-3">
                     <h4 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1 flex items-center gap-1.5">
                       <Target className="w-3.5 h-3.5" /> Milestone
