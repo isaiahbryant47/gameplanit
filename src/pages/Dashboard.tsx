@@ -95,7 +95,7 @@ export default function Dashboard() {
       <div className="border-b border-border bg-card">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-card-foreground">{plan.title}</h1>
+            <h1 className="text-xl font-bold text-card-foreground">{plan.title.replace(/^12-Week (Game )?Plan:?\s*/i, '')}</h1>
             <p className="text-sm text-muted-foreground">Created {new Date(plan.createdAt).toLocaleDateString()}</p>
           </div>
           <div className="flex gap-2">
