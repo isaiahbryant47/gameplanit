@@ -6,11 +6,13 @@ import Dashboard from './pages/Dashboard';
 import Partner from './pages/Partner';
 import Login from './pages/Login';
 import ResourceAdmin from './pages/ResourceAdmin';
+import PageNav from './components/PageNav';
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <PageNav />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
