@@ -10,7 +10,7 @@ import PlanCalendarView from '@/components/PlanCalendarView';
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
-  const [expandedWeek, setExpandedWeek] = useState<number | null>(1);
+  const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'calendar'>('list');
 
   if (!user) return <Navigate to="/login" />;
@@ -86,55 +86,77 @@ export default function Dashboard() {
         {/* AI Resource Discovery */}
         <ResourceDiscovery profile={profile} />
 
-        {/* Weekly Plan */}
+      {/* Plan by Goals */}
         {view === 'calendar' ? (
           <PlanCalendarView plan={plan} />
         ) : (
-          plan.weeks.map(week => {
-            const isOpen = expandedWeek === week.weekNumber;
-            return (
-              <div key={week.id} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+          (() => {
+            // Group weeks by goal
+            const goalMap = new Map<string, typeof plan.weeks>();
+            plan.weeks.forEach(week => {
+              // Extract goal from focus string (format: "theme - goal")
+              const goal = week.focus.includes(' - ') ? week.focus.split(' - ').slice(1).join(' - ') : week.focus;
+              if (!goalMap.has(goal)) goalMap.set(goal, []);
+              goalMap.get(goal)!.push(week);
+            });
+
+            return Array.from(goalMap.entries()).map(([goal, weeks]) => (
+              <div key={goal} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 <button
-                  onClick={() => setExpandedWeek(isOpen ? null : week.weekNumber)}
+                  onClick={() => setExpandedWeek(prev => prev === goal ? null : goal)}
                   className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-secondary/50 transition-colors"
                 >
-                  <div>
-                    <span className="text-xs font-medium text-primary">WEEK {week.weekNumber}</span>
-                    <h2 className="text-sm font-semibold text-card-foreground">{week.focus}</h2>
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-sm font-bold">{weeks.length}</span>
+                    <div>
+                      <h2 className="text-sm font-semibold text-card-foreground capitalize">{goal}</h2>
+                      <p className="text-xs text-muted-foreground">{weeks.map(w => `W${w.weekNumber}`).join(', ')}</p>
+                    </div>
                   </div>
-                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expandedWeek === goal ? 'rotate-180' : ''}`} />
                 </button>
-                {isOpen && (
-                  <div className="px-5 pb-5 space-y-3">
-                    <div>
-                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Actions</h4>
-                      <ul className="space-y-1.5">
-                        {week.actions.map((a, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-card-foreground">
-                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                            {a}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Resources</h4>
-                      <ul className="space-y-1">
-                        {week.resources.map((r, i) => (
-                          <li key={i} className="text-sm text-primary hover:underline">
-                            {r.startsWith('http') ? <a href={r} target="_blank" rel="noopener noreferrer">{r}</a> : r}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="pt-2 border-t border-border">
-                      <p className="text-xs text-muted-foreground">{week.milestones[0]}</p>
-                    </div>
+                {expandedWeek === goal && (
+                  <div className="border-t border-border divide-y divide-border">
+                    {weeks.map(week => {
+                      const theme = week.focus.includes(' - ') ? week.focus.split(' - ')[0] : '';
+                      return (
+                        <div key={week.id} className="px-5 py-4 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-primary">WEEK {week.weekNumber}</span>
+                            {theme && <span className="text-xs text-muted-foreground">· {theme}</span>}
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Actions</h4>
+                            <ul className="space-y-1.5">
+                              {week.actions.map((a, i) => (
+                                <li key={i} className="flex items-start gap-2 text-sm text-card-foreground">
+                                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                                  {a}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Resources</h4>
+                            <ul className="space-y-1">
+                              {week.resources.map((r, i) => (
+                                <li key={i} className="text-sm text-primary hover:underline">
+                                  {r.startsWith('http') ? <a href={r} target="_blank" rel="noopener noreferrer">{r}</a> : r}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div className="pt-2 border-t border-border">
+                            <p className="text-xs text-muted-foreground">{week.milestones[0]}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-            );
-          })
+            ));
+          })()
         )}
       </div>
     </div>
