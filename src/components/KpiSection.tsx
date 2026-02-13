@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { storage, type ProgressData } from '@/lib/storage';
 import type { Plan, Profile } from '@/lib/types';
 import { TrendingUp, Target, BookOpen, GraduationCap, Plus, ChevronDown } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 interface Props {
   plan: Plan;
@@ -199,14 +200,48 @@ export default function KpiSection({ plan, profile, userId }: Props) {
               </div>
             )}
             {progress.academicLog.length > 0 ? (
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {progress.academicLog.slice(-6).map((entry, i) => (
-                  <div key={i} className="shrink-0 rounded-lg bg-muted px-3 py-2 min-w-[100px]">
-                    <p className="text-[10px] text-muted-foreground">{new Date(entry.date).toLocaleDateString()}</p>
-                    {entry.gpa != null && <p className="text-xs font-semibold text-card-foreground">{entry.gpa} GPA</p>}
-                    {entry.attendance != null && <p className="text-[10px] text-muted-foreground">{entry.attendance}% att.</p>}
+              <div className="space-y-3">
+                {/* Chart */}
+                {progress.academicLog.length >= 2 && (
+                  <div className="rounded-lg border border-border bg-background p-3">
+                    <ResponsiveContainer width="100%" height={180}>
+                      <LineChart data={progress.academicLog.map(e => ({
+                        date: new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                        GPA: e.gpa != null ? e.gpa : undefined,
+                        Attendance: e.attendance != null ? e.attendance : undefined,
+                      }))}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                        <YAxis yAxisId="gpa" domain={[0, 4]} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} width={30} />
+                        <YAxis yAxisId="att" orientation="right" domain={[0, 100]} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} width={35} />
+                        <Tooltip
+                          contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }}
+                          labelStyle={{ color: 'hsl(var(--card-foreground))' }}
+                        />
+                        <Line yAxisId="gpa" type="monotone" dataKey="GPA" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3, fill: 'hsl(var(--primary))' }} connectNulls />
+                        <Line yAxisId="att" type="monotone" dataKey="Attendance" stroke="hsl(var(--accent-foreground))" strokeWidth={2} dot={{ r: 3, fill: 'hsl(var(--accent-foreground))' }} connectNulls />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    <div className="flex items-center justify-center gap-4 mt-1">
+                      <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <span className="w-3 h-0.5 rounded bg-primary inline-block" /> GPA (0–4)
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <span className="w-3 h-0.5 rounded bg-accent-foreground inline-block" /> Attendance (0–100%)
+                      </span>
+                    </div>
                   </div>
-                ))}
+                )}
+                {/* Entry cards */}
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {progress.academicLog.slice(-6).map((entry, i) => (
+                    <div key={i} className="shrink-0 rounded-lg bg-muted px-3 py-2 min-w-[100px]">
+                      <p className="text-[10px] text-muted-foreground">{new Date(entry.date).toLocaleDateString()}</p>
+                      {entry.gpa != null && <p className="text-xs font-semibold text-card-foreground">{entry.gpa} GPA</p>}
+                      {entry.attendance != null && <p className="text-[10px] text-muted-foreground">{entry.attendance}% att.</p>}
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">No entries yet. Log your GPA and attendance to track trends.</p>
