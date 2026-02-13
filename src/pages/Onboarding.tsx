@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
 import { Profile, Transportation } from '@/lib/types';
+import GoalBuilder from '@/components/GoalBuilder';
 
 const schema = z.object({
   email: z.string().email(),
@@ -92,7 +93,11 @@ export default function Onboarding() {
     nav('/recommendations');
   };
 
-  const stepTitles = ['Account', 'About You', 'Intake Survey'];
+  const handleGoalsChange = useCallback((goals: string) => {
+    setF(prev => ({ ...prev, goals }));
+  }, []);
+
+  const stepTitles = ['Account', 'About You', 'Goals', 'Constraints'];
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -108,14 +113,15 @@ export default function Onboarding() {
             ))}
           </div>
           <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-            <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${(step / 3) * 100}%` }} />
+            <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${(step / 4) * 100}%` }} />
           </div>
         </div>
 
         <h1 className="text-2xl font-bold text-card-foreground">
           {step === 1 && 'Create your account'}
           {step === 2 && 'Tell us about yourself'}
-          {step === 3 && 'Your constraints'}
+          {step === 3 && 'What do you want to achieve?'}
+          {step === 4 && 'Your constraints'}
         </h1>
 
         <div className="space-y-3">
@@ -170,10 +176,15 @@ export default function Onboarding() {
                   })}
                 </div>
               </div>
-              <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Goals (comma-separated)" value={f.goals} onChange={e => setF({ ...f, goals: e.target.value })} />
+              <GoalBuilder
+                interests={f.interests}
+                gradeLevel={f.gradeLevel}
+                initialGoals={f.goals}
+                onGoalsChange={handleGoalsChange}
+              />
             </>
           )}
-          {step === 3 && (
+          {step === 4 && (
             <>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-2 block">How many hours per week can you dedicate?</label>
@@ -251,8 +262,12 @@ export default function Onboarding() {
               Back
             </button>
           )}
-          {step < 3 ? (
-            <button className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity" onClick={() => { setError(''); setStep(step + 1); }}>
+          {step < 4 ? (
+            <button
+              className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
+              disabled={step === 3 && !f.goals.trim()}
+              onClick={() => { setError(''); setStep(step + 1); }}
+            >
               Next
             </button>
           ) : (
