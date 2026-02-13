@@ -1,7 +1,7 @@
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
-import { generatePlanWeeks } from '@/lib/planGenerator';
+import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
 import { RefreshCw, Printer, LogOut, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
@@ -27,8 +27,9 @@ export default function Dashboard() {
     );
   }
 
-  const regenerate = () => {
-    const updated = { ...plan, createdAt: new Date().toISOString(), weeks: generatePlanWeeks(profile, plan.id) };
+  const regenerate = async () => {
+    const weeks = await generatePlanWeeksWithResources(profile, plan.id);
+    const updated = { ...plan, createdAt: new Date().toISOString(), weeks };
     storage.savePlans([...storage.allPlans().filter((p) => p.userId !== user.id), updated]);
     nav(0);
   };

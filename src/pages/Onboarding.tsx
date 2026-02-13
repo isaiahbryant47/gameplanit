@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
-import { generatePlanWeeks } from '@/lib/planGenerator';
+import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
 import { storage } from '@/lib/storage';
 import { Plan, Profile, Transportation } from '@/lib/types';
 
@@ -32,12 +32,15 @@ export default function Onboarding() {
     responsibilities: '', goals: 'career exposure', gpa: '', attendance: ''
   });
 
-  const submit = () => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async () => {
     const valid = schema.safeParse({ email: f.email, password: f.password, zipCode: f.zipCode, responsibilities: f.responsibilities });
     if (!valid.success) return setError(valid.error.issues[0].message);
     const current = user || register(f.email, f.password, f.type);
     if (!current) return setError('Email already exists. Login instead.');
 
+    setSubmitting(true);
     const profile: Profile = {
       id: crypto.randomUUID(), userId: current.id, type: f.type, gradeLevel: f.gradeLevel,
       schoolName: f.schoolName || undefined, zipCode: f.zipCode,
@@ -49,8 +52,10 @@ export default function Onboarding() {
 
     storage.saveProfiles([...storage.allProfiles().filter(p => p.userId !== current.id), profile]);
     const planId = crypto.randomUUID();
-    const plan: Plan = { id: planId, userId: current.id, profileId: profile.id, title: '12-Week Game Plan', createdAt: new Date().toISOString(), weeks: generatePlanWeeks(profile, planId) };
+    const weeks = await generatePlanWeeksWithResources(profile, planId);
+    const plan: Plan = { id: planId, userId: current.id, profileId: profile.id, title: '12-Week Game Plan', createdAt: new Date().toISOString(), weeks };
     storage.savePlans([...storage.allPlans().filter(p => p.userId !== current.id), plan]);
+    setSubmitting(false);
     nav('/dashboard');
   };
 
@@ -153,8 +158,8 @@ export default function Onboarding() {
               Next
             </button>
           ) : (
-            <button className="rounded-lg bg-success px-5 py-2.5 text-sm font-medium text-success-foreground hover:opacity-90 transition-opacity" onClick={submit}>
-              Generate My Plan
+            <button disabled={submitting} className="rounded-lg bg-success px-5 py-2.5 text-sm font-medium text-success-foreground hover:opacity-90 transition-opacity disabled:opacity-50" onClick={submit}>
+              {submitting ? 'Generating...' : 'Generate My Plan'}
             </button>
           )}
         </div>
