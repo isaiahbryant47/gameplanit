@@ -110,7 +110,7 @@ export default function Dashboard() {
                     <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-sm font-bold">{weeks.length}</span>
                     <div>
                       <h2 className="text-sm font-semibold text-card-foreground capitalize">{goal}</h2>
-                      <p className="text-xs text-muted-foreground">{weeks.map(w => `W${w.weekNumber}`).join(', ')}</p>
+                      <p className="text-xs text-muted-foreground">{weeks.length} {weeks.length === 1 ? 'week' : 'weeks'} · Weeks {weeks[0].weekNumber}–{weeks[weeks.length - 1].weekNumber}</p>
                     </div>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expandedWeek === goal ? 'rotate-180' : ''}`} />
