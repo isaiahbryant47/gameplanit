@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
-import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
 import { storage } from '@/lib/storage';
-import { Plan, Profile, Transportation } from '@/lib/types';
+import { Profile, Transportation } from '@/lib/types';
 
 const schema = z.object({
   email: z.string().email(),
@@ -89,12 +88,8 @@ export default function Onboarding() {
     };
 
     storage.saveProfiles([...storage.allProfiles().filter(p => p.userId !== current.id), profile]);
-    const planId = crypto.randomUUID();
-    const weeks = await generatePlanWeeksWithResources(profile, planId);
-    const plan: Plan = { id: planId, userId: current.id, profileId: profile.id, title: '12-Week Game Plan', createdAt: new Date().toISOString(), weeks };
-    storage.savePlans([...storage.allPlans().filter(p => p.userId !== current.id), plan]);
     setSubmitting(false);
-    nav('/dashboard');
+    nav('/recommendations');
   };
 
   const stepTitles = ['Account', 'About You', 'Intake Survey'];
