@@ -1,53 +1,105 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
-import { storage } from '@/lib/storage';
-import { User } from '@/lib/types';
+import { supabase } from '@/integrations/supabase/client';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+
+export type AppRole = 'student' | 'caregiver' | 'partner_admin';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: AppRole;
+}
 
 interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => boolean;
-  register: (email: string, password: string, role: User['role']) => User | null;
-  logout: () => void;
+  user: AuthUser | null;
   loading: boolean;
+  login: (email: string, password: string) => Promise<{ error?: string }>;
+  register: (email: string, password: string) => Promise<{ error?: string; user?: AuthUser }>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  login: () => false,
-  register: () => null,
-  logout: () => {},
-  loading: true
+  loading: true,
+  login: async () => ({ error: 'Not initialized' }),
+  register: async () => ({ error: 'Not initialized' }),
+  logout: async () => {},
 });
 
+async function fetchRole(userId: string): Promise<AppRole> {
+  const { data } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId)
+    .limit(1)
+    .single();
+  return (data?.role as AppRole) || 'student';
+}
+
+async function buildAuthUser(supaUser: SupabaseUser): Promise<AuthUser> {
+  const role = await fetchRole(supaUser.id);
+  return {
+    id: supaUser.id,
+    email: supaUser.email || '',
+    role,
+  };
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    storage.seed();
-    const sessionId = storage.getSession();
-    setUser(storage.allUsers().find((u) => u.id === sessionId) || null);
-    setLoading(false);
+    // Set up listener BEFORE getSession per Supabase best practices
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          const authUser = await buildAuthUser(session.user);
+          setUser(authUser);
+        } else {
+          setUser(null);
+        }
+        setLoading(false);
+      }
+    );
+
+    // Then check current session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const authUser = await buildAuthUser(session.user);
+        setUser(authUser);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const value = useMemo(() => ({
     user,
     loading,
-    login: (email: string, password: string) => {
-      const found = storage.allUsers().find((u) => u.email === email && u.password === password) || null;
-      setUser(found);
-      storage.setSession(found?.id || null);
-      return Boolean(found);
+    login: async (email: string, password: string) => {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { error: error.message };
+      return {};
     },
-    register: (email: string, password: string, role: User['role']) => {
-      const users = storage.allUsers();
-      if (users.some((u) => u.email === email)) return null;
-      const created: User = { id: crypto.randomUUID(), email, password, role, createdAt: new Date().toISOString() };
-      storage.saveUsers([...users, created]);
-      storage.setSession(created.id);
-      setUser(created);
-      return created;
+    register: async (email: string, password: string) => {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) return { error: error.message };
+      if (data.user) {
+        const authUser = await buildAuthUser(data.user);
+        return { user: authUser };
+      }
+      return {};
     },
-    logout: () => { storage.setSession(null); setUser(null); }
+    logout: async () => {
+      await supabase.auth.signOut();
+      setUser(null);
+    },
   }), [user, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

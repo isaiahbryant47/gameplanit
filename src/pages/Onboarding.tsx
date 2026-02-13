@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { storage } from '@/lib/storage';
 import { Profile, Transportation, GoalDomain, Pathway } from '@/lib/types';
 import GoalBuilder from '@/components/GoalBuilder';
@@ -91,21 +92,72 @@ export default function Onboarding() {
     const valid = schema.safeParse({ email: f.email, password: f.password });
     if (!valid.success) return setError(valid.error.issues[0].message);
     const finalZip = f.zipCode.trim() || '191';
-    const current = user || register(f.email, f.password, f.type);
-    if (!current) return setError('Email already exists. Login instead.');
 
     setSubmitting(true);
+    setError('');
+
+    // If not already logged in, register via Supabase Auth
+    let currentUserId = user?.id;
+    if (!currentUserId) {
+      const result = await register(f.email, f.password);
+      if (result.error) {
+        setSubmitting(false);
+        return setError(result.error);
+      }
+      if (result.user) {
+        currentUserId = result.user.id;
+      } else {
+        // Email confirmation required
+        setSubmitting(false);
+        return setError('Check your email to confirm your account, then sign in.');
+      }
+    }
+
+    if (!currentUserId) {
+      setSubmitting(false);
+      return setError('Unable to create account. Please try again.');
+    }
 
     // Create user pathway if selected
     if (f.selectedPathway) {
-      await createUserPathway(current.id, f.selectedPathway.id);
+      await createUserPathway(currentUserId, f.selectedPathway.id);
     }
 
+    // Save profile to Supabase
+    const constraintsJson = {
+      timePerWeekHours: Number(f.timePerWeekHours),
+      budgetPerMonth: Number(f.budgetPerMonth),
+      transportation: f.transportation,
+      responsibilities: f.responsibilities.filter(r => r !== 'none').join(', '),
+    };
+    const baselineJson = {
+      gpa: f.gpa ? Number(f.gpa) : undefined,
+      attendance: f.attendance ? Number(f.attendance) : undefined,
+    };
+
+    await supabase.from('profiles').upsert({
+      user_id: currentUserId,
+      type: f.type,
+      grade_level: f.gradeLevel,
+      school_name: f.schoolName || null,
+      zip_code: finalZip,
+      interests: f.interests,
+      constraints_json: constraintsJson,
+      goals: f.goals.split(',').map(s => s.trim()).filter(Boolean),
+      baseline_json: baselineJson,
+      goal_domain: f.goalDomain || null,
+      pathway_id: f.selectedPathway?.id || null,
+      outcome_statement: f.outcomeStatement || null,
+      target_date: f.targetDate || null,
+      domain_baseline: Object.keys(f.domainBaseline).length > 0 ? f.domainBaseline : {},
+    }, { onConflict: 'user_id' });
+
+    // Also save to localStorage for backward compat with existing dashboard
     const profile: Profile = {
-      id: crypto.randomUUID(), userId: current.id, type: f.type, gradeLevel: f.gradeLevel,
+      id: crypto.randomUUID(), userId: currentUserId, type: f.type, gradeLevel: f.gradeLevel,
       schoolName: f.schoolName || undefined, zipCode: finalZip,
       interests: f.interests,
-      constraints: { timePerWeekHours: Number(f.timePerWeekHours), budgetPerMonth: Number(f.budgetPerMonth), transportation: f.transportation, responsibilities: f.responsibilities.filter(r => r !== 'none').join(', ') },
+      constraints: constraintsJson,
       goals: f.goals.split(',').map(s => s.trim()).filter(Boolean),
       baseline: { gpa: f.gpa ? Number(f.gpa) : undefined, attendance: f.attendance ? Number(f.attendance) : undefined },
       goalDomain: f.goalDomain || undefined,
@@ -114,8 +166,8 @@ export default function Onboarding() {
       targetDate: f.targetDate || undefined,
       domainBaseline: Object.keys(f.domainBaseline).length > 0 ? f.domainBaseline : undefined,
     };
+    storage.saveProfiles([...storage.allProfiles().filter(p => p.userId !== currentUserId), profile]);
 
-    storage.saveProfiles([...storage.allProfiles().filter(p => p.userId !== current.id), profile]);
     setSubmitting(false);
     nav('/recommendations');
   };
