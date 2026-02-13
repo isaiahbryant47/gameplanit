@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      prediction_snapshots: {
+        Row: {
+          adherence_probability: number
+          created_at: string
+          grade_level: string | null
+          id: string
+          plan_hash: string
+          risk_flag: boolean
+          time_per_week_hours: number | null
+          top_drivers: Json
+          transportation: string | null
+          user_hash: string
+          week_number: number
+        }
+        Insert: {
+          adherence_probability: number
+          created_at?: string
+          grade_level?: string | null
+          id?: string
+          plan_hash: string
+          risk_flag?: boolean
+          time_per_week_hours?: number | null
+          top_drivers?: Json
+          transportation?: string | null
+          user_hash: string
+          week_number: number
+        }
+        Update: {
+          adherence_probability?: number
+          created_at?: string
+          grade_level?: string | null
+          id?: string
+          plan_hash?: string
+          risk_flag?: boolean
+          time_per_week_hours?: number | null
+          top_drivers?: Json
+          transportation?: string | null
+          user_hash?: string
+          week_number?: number
+        }
+        Relationships: []
+      }
       resources: {
         Row: {
           category: Database["public"]["Enums"]["resource_category"]
@@ -65,6 +107,45 @@ export type Database = {
           updated_at?: string
           url?: string | null
           zip_prefixes?: string[]
+        }
+        Relationships: []
+      }
+      weekly_checkins: {
+        Row: {
+          completed_actions_count: number
+          created_at: string
+          grade_level: string | null
+          id: string
+          plan_hash: string
+          time_per_week_hours: number | null
+          total_actions_count: number
+          transportation: string | null
+          user_hash: string
+          week_number: number
+        }
+        Insert: {
+          completed_actions_count?: number
+          created_at?: string
+          grade_level?: string | null
+          id?: string
+          plan_hash: string
+          time_per_week_hours?: number | null
+          total_actions_count?: number
+          transportation?: string | null
+          user_hash: string
+          week_number: number
+        }
+        Update: {
+          completed_actions_count?: number
+          created_at?: string
+          grade_level?: string | null
+          id?: string
+          plan_hash?: string
+          time_per_week_hours?: number | null
+          total_actions_count?: number
+          transportation?: string | null
+          user_hash?: string
+          week_number?: number
         }
         Relationships: []
       }

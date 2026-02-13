@@ -8,6 +8,7 @@ import ResourceDiscovery from '@/components/ResourceDiscovery';
 import PlanCalendarView from '@/components/PlanCalendarView';
 import StudentProfile from '@/components/StudentProfile';
 import KpiSection from '@/components/KpiSection';
+import AdherencePrediction from '@/components/AdherencePrediction';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -102,6 +103,15 @@ export default function Dashboard() {
             onSave={() => nav(0)}
           />
         )}
+
+        {/* Predictive Insights */}
+        <AdherencePrediction
+          plan={plan}
+          profile={profile}
+          userId={user.id}
+          progress={progress}
+          onPlanAdapted={() => nav(0)}
+        />
 
         {/* KPIs */}
         <KpiSection plan={plan} profile={profile} userId={user.id} />
