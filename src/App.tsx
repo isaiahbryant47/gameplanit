@@ -5,6 +5,7 @@ import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
 import Partner from './pages/Partner';
 import Login from './pages/Login';
+import ResourceAdmin from './pages/ResourceAdmin';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/partner" element={<Partner />} />
+          <Route path="/partner/resources" element={<ResourceAdmin />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

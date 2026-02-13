@@ -1,9 +1,9 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
 import { Plan, Profile } from '@/lib/types';
 import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Database } from 'lucide-react';
 
 export default function Partner() {
   const { user, logout } = useAuth();
@@ -36,9 +36,14 @@ export default function Partner() {
             <h1 className="text-xl font-bold text-card-foreground">Partner Dashboard</h1>
             <p className="text-sm text-muted-foreground">Anonymized student plan data — emails are never shown</p>
           </div>
-          <button onClick={() => { logout(); }} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors">
-            Logout
-          </button>
+          <div className="flex gap-2">
+            <Link to="/partner/resources" className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors">
+              <Database className="w-4 h-4" /> Resources
+            </Link>
+            <button onClick={() => { logout(); }} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors">
+              Logout
+            </button>
+          </div>
         </div>
       </div>
 
