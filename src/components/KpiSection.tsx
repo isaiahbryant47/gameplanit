@@ -81,9 +81,9 @@ export default function KpiSection({ plan, profile, userId }: Props) {
     },
     {
       icon: Target,
-      label: 'Goal Completion',
-      value: `${goalStats.filter(g => g.pct === 100).length}/${goalStats.length}`,
-      pct: goalStats.length > 0 ? Math.round(goalStats.reduce((s, g) => s + g.pct, 0) / goalStats.length) : 0,
+      label: 'Goals Completed',
+      value: `${Object.keys(progress.completedGoals || {}).length}/${goalStats.length}`,
+      pct: goalStats.length > 0 ? Math.round((Object.keys(progress.completedGoals || {}).length / goalStats.length) * 100) : 0,
       sub: `${goalStats.length} goals tracked`,
       color: 'text-accent-foreground',
       bg: 'bg-accent',

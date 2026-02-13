@@ -4,6 +4,7 @@ export interface ProgressData {
   completedActions: Record<string, boolean>; // key: "weekId-actionIdx"
   resourcesEngaged: string[]; // resource URLs or titles clicked/used
   academicLog: { date: string; gpa?: number; attendance?: number }[];
+  completedGoals: Record<string, string>; // key: goal name, value: completion date ISO
 }
 
 const KEYS = { users: 'gp_users', profiles: 'gp_profiles', plans: 'gp_plans', session: 'gp_session', progress: 'gp_progress' };
@@ -16,7 +17,7 @@ function readObj<T>(key: string, fallback: T): T {
   return raw ? JSON.parse(raw) : fallback;
 }
 
-const emptyProgress: ProgressData = { completedActions: {}, resourcesEngaged: [], academicLog: [] };
+const emptyProgress: ProgressData = { completedActions: {}, resourcesEngaged: [], academicLog: [], completedGoals: {} };
 
 export const storage = {
   seed() {
