@@ -98,7 +98,7 @@ export default function Onboarding() {
     setF(prev => ({ ...prev, goals }));
   }, []);
 
-  const stepTitles = ['Account', 'About You', 'Goals', 'Constraints'];
+  const stepTitles = ['Get Started', 'Your World', 'Where You\'re Headed', 'Your Real Life'];
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -119,11 +119,17 @@ export default function Onboarding() {
         </div>
 
         <h1 className="text-2xl font-bold text-card-foreground">
-          {step === 1 && 'Create your account'}
-          {step === 2 && 'Tell us about yourself'}
-          {step === 3 && 'What do you want to achieve?'}
-          {step === 4 && 'Your constraints'}
+          {step === 1 && 'Let\'s get you set up'}
+          {step === 2 && 'Tell us about your world'}
+          {step === 3 && 'What are you working toward?'}
+          {step === 4 && 'What does your week look like?'}
         </h1>
+        <p className="text-sm text-muted-foreground -mt-2">
+          {step === 1 && 'Set up your login so we can save your plan and keep it just for you.'}
+          {step === 2 && 'Tell us a little about where you are right now — it helps us find the right opportunities near you.'}
+          {step === 3 && 'What do you want to explore or accomplish? Even a rough idea helps us build something real.'}
+          {step === 4 && 'We all juggle different things. Sharing what your schedule and resources look like helps us make a plan that actually fits.'}
+        </p>
 
         <div className="space-y-3">
           {step === 1 && (
