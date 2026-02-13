@@ -2,13 +2,15 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
 import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
-import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle, CheckSquare, Square, Trophy } from 'lucide-react';
+import { generateLLMPlan, type StructuredWeek, type StructuredAction } from '@/lib/llmPlanService';
+import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle, CheckSquare, Square, Trophy, BookOpen, Clock, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import ResourceDiscovery from '@/components/ResourceDiscovery';
 import PlanCalendarView from '@/components/PlanCalendarView';
 import StudentProfile from '@/components/StudentProfile';
 import KpiSection from '@/components/KpiSection';
 import AdherencePrediction from '@/components/AdherencePrediction';
+import { toast } from 'sonner';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -16,6 +18,13 @@ export default function Dashboard() {
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [showProfile, setShowProfile] = useState(false);
+  const [structuredWeeks] = useState<StructuredWeek[]>(() => {
+    if (!user) return [];
+    try {
+      const raw = localStorage.getItem(`gp_structured_weeks_${user.id}`);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
   const [progress, setProgress] = useState(() => {
     const p = user ? storage.getProgress(user.id) : { completedActions: {}, resourcesEngaged: [] as string[], academicLog: [] as { date: string; gpa?: number; attendance?: number }[], completedGoals: {} as Record<string, string> };
     if (!p.completedGoals) p.completedGoals = {};
@@ -40,10 +49,31 @@ export default function Dashboard() {
   }
 
   const regenerate = async () => {
-    const weeks = await generatePlanWeeksWithResources(profile, plan.id);
-    const updated = { ...plan, createdAt: new Date().toISOString(), weeks };
-    storage.savePlans([...storage.allPlans().filter((p) => p.userId !== user.id), updated]);
-    nav(0);
+    try {
+      toast.info('Regenerating your plan with AI...');
+      const result = await generateLLMPlan(profile, user.id);
+      const localWeeks = result.weeks.map((w) => ({
+        id: crypto.randomUUID(),
+        planId: result.planId,
+        weekNumber: w.week,
+        focus: w.focus,
+        actions: w.actions.map(a => a.task),
+        resources: w.actions.map(a => `${a.resource} — ${a.access}`),
+        milestones: [w.milestone],
+      }));
+      const updated = { ...plan, id: result.planId, createdAt: new Date().toISOString(), weeks: localWeeks };
+      storage.savePlans([...storage.allPlans().filter((p) => p.userId !== user.id), updated]);
+      localStorage.setItem(`gp_structured_weeks_${user.id}`, JSON.stringify(result.weeks));
+      toast.success('Plan regenerated!');
+      nav(0);
+    } catch (err) {
+      console.error('Regenerate failed, using template:', err);
+      toast.error('AI unavailable — regenerating from template.');
+      const weeks = await generatePlanWeeksWithResources(profile, plan.id);
+      const updated = { ...plan, createdAt: new Date().toISOString(), weeks };
+      storage.savePlans([...storage.allPlans().filter((p) => p.userId !== user.id), updated]);
+      nav(0);
+    }
   };
 
   const exportPdf = () => {
@@ -188,6 +218,8 @@ export default function Dashboard() {
                   <div className="divide-y divide-border">
                     {weeks.map(week => {
                       const theme = week.focus.includes(' - ') ? week.focus.split(' - ')[0] : '';
+                      // Find matching structured week for rich action data
+                      const sWeek = structuredWeeks.find(sw => sw.week === week.weekNumber);
                       return (
                         <div key={week.id} className="px-5 py-4 space-y-3">
                           <div className="flex items-center gap-2">
@@ -196,28 +228,67 @@ export default function Dashboard() {
                           </div>
                           <div>
                             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Actions</h4>
-                            <ul className="space-y-1.5">
-                              {week.actions.map((a, i) => {
-                                const actionKey = `${week.id}-${i}`;
-                                const done = !!progress.completedActions[actionKey];
-                                return (
-                                  <li key={i} className="flex items-start gap-2 text-sm text-card-foreground">
-                                    <button
-                                      onClick={() => {
-                                        const updated = { ...progress, completedActions: { ...progress.completedActions, [actionKey]: !done } };
-                                        setProgress(updated);
-                                        storage.saveProgress(user.id, updated);
-                                      }}
-                                      className="mt-0.5 shrink-0"
-                                    >
-                                      {done ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />}
-                                    </button>
-                                    <span className={done ? 'line-through text-muted-foreground' : ''}>{a}</span>
-                                  </li>
-                                );
-                              })}
-                            </ul>
+                            {sWeek ? (
+                              <div className="space-y-3">
+                                {sWeek.actions.map((a: StructuredAction, i: number) => {
+                                  const actionKey = `${week.id}-${i}`;
+                                  const done = !!progress.completedActions[actionKey];
+                                  return (
+                                    <div key={i} className={`rounded-lg border p-3 space-y-2 transition-colors ${done ? 'border-primary/30 bg-primary/5' : 'border-border bg-card'}`}>
+                                      <div className="flex items-start gap-2">
+                                        <button
+                                          onClick={() => {
+                                            const updated = { ...progress, completedActions: { ...progress.completedActions, [actionKey]: !done } };
+                                            setProgress(updated);
+                                            storage.saveProgress(user.id, updated);
+                                          }}
+                                          className="mt-0.5 shrink-0"
+                                        >
+                                          {done ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />}
+                                        </button>
+                                        <span className={`text-sm font-medium ${done ? 'line-through text-muted-foreground' : 'text-card-foreground'}`}>{a.task}</span>
+                                      </div>
+                                      <div className="ml-6 space-y-1.5">
+                                        <div className="flex items-center gap-1.5">
+                                          <BookOpen className="w-3 h-3 text-primary shrink-0" />
+                                          <span className="text-xs font-semibold text-foreground">{a.resource}</span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground"><span className="font-medium">Access:</span> {a.access}</p>
+                                        <p className="text-xs text-muted-foreground"><span className="font-medium">How to use:</span> {a.how_to_use}</p>
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <Clock className="w-3 h-3" />
+                                          <span>{a.time_estimate}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <ul className="space-y-1.5">
+                                {week.actions.map((a, i) => {
+                                  const actionKey = `${week.id}-${i}`;
+                                  const done = !!progress.completedActions[actionKey];
+                                  return (
+                                    <li key={i} className="flex items-start gap-2 text-sm text-card-foreground">
+                                      <button
+                                        onClick={() => {
+                                          const updated = { ...progress, completedActions: { ...progress.completedActions, [actionKey]: !done } };
+                                          setProgress(updated);
+                                          storage.saveProgress(user.id, updated);
+                                        }}
+                                        className="mt-0.5 shrink-0"
+                                      >
+                                        {done ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />}
+                                      </button>
+                                      <span className={done ? 'line-through text-muted-foreground' : ''}>{a}</span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            )}
                           </div>
+                          {!sWeek && (
                           <div>
                             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Resources</h4>
                             <ul className="space-y-1">
@@ -228,6 +299,7 @@ export default function Dashboard() {
                               ))}
                             </ul>
                           </div>
+                          )}
                           <div className="pt-2 border-t border-border">
                             <p className="text-xs text-muted-foreground">{week.milestones[0]}</p>
                           </div>

@@ -1,0 +1,308 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+// ── Structured JSON schema for the LLM via tool calling ──
+const weekActionSchema = {
+  type: "object" as const,
+  properties: {
+    task: { type: "string" as const, description: "A specific, actionable task the student should complete" },
+    resource: { type: "string" as const, description: "Name of the resource to use" },
+    access: { type: "string" as const, description: "Step-by-step instructions to access the resource" },
+    how_to_use: { type: "string" as const, description: "Exactly how the student should use this resource this week" },
+    time_estimate: { type: "string" as const, description: "Estimated time (e.g. '30 minutes')" },
+  },
+  required: ["task", "resource", "access", "how_to_use", "time_estimate"],
+  additionalProperties: false,
+};
+
+const weekSchema = {
+  type: "object" as const,
+  properties: {
+    week: { type: "number" as const },
+    focus: { type: "string" as const, description: "Theme or focus area for this week" },
+    actions: {
+      type: "array" as const,
+      items: weekActionSchema,
+      minItems: 3,
+      maxItems: 5,
+    },
+    milestone: { type: "string" as const, description: "A measurable milestone for the week" },
+  },
+  required: ["week", "focus", "actions", "milestone"],
+  additionalProperties: false,
+};
+
+const planToolSchema = {
+  type: "function" as const,
+  function: {
+    name: "create_plan",
+    description: "Create a structured 12-week action plan for a student.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        weeks: {
+          type: "array" as const,
+          items: weekSchema,
+          minItems: 12,
+          maxItems: 12,
+        },
+      },
+      required: ["weeks"],
+      additionalProperties: false,
+    },
+  },
+};
+
+// ── Prompt builder ──
+interface ProfileInput {
+  gradeLevel: string;
+  interests: string[];
+  goals: string[];
+  zipCode: string;
+  constraints: {
+    timePerWeekHours: number;
+    budgetPerMonth: number;
+    transportation: string;
+    responsibilities: string;
+  };
+  baseline?: { gpa?: number; attendance?: number };
+}
+
+function buildSystemPrompt(profile: ProfileInput): string {
+  const budget =
+    profile.constraints.budgetPerMonth === 0
+      ? "zero budget — only free resources"
+      : profile.constraints.budgetPerMonth <= 25
+        ? "very low budget (under $25/mo) — prioritize free resources"
+        : `up to $${profile.constraints.budgetPerMonth}/mo`;
+
+  const responsibilities = profile.constraints.responsibilities || "none reported";
+
+  return `You are the planning engine inside GameplanIT, a platform that builds personalized 12-week action plans for middle and high school students (grades 7–12).
+
+STUDENT PROFILE:
+- Grade: ${profile.gradeLevel}
+- Interests: ${profile.interests.join(", ") || "general academics"}
+- Goals: ${profile.goals.join("; ")}
+- ZIP code area: ${profile.zipCode}
+- Available time: ${profile.constraints.timePerWeekHours} hours per week
+- Budget: ${budget}
+- Transportation: ${profile.constraints.transportation}
+- Outside responsibilities: ${responsibilities}
+${profile.baseline?.gpa ? `- Current GPA: ${profile.baseline.gpa}` : ""}
+${profile.baseline?.attendance ? `- Attendance rate: ${profile.baseline.attendance}%` : ""}
+
+REQUIREMENTS:
+1. Generate exactly 12 weeks.
+2. Each week MUST have 3–5 actionable steps.
+3. Every action must include a SPECIFIC, REAL resource (website, app, program, or local service).
+4. For each resource, provide:
+   - The resource name
+   - STEP-BY-STEP instructions on how to access it (e.g. "Go to khanacademy.org → click Courses → search Algebra 1")
+   - EXACTLY how to use it THIS week (specific tasks within the resource)
+   - A realistic time estimate
+5. Every week must have a measurable milestone (not vague).
+6. Prioritize free or low-cost resources.
+7. Keep all language at a grade 7–10 reading level.
+8. Build progressive difficulty — early weeks are lighter.
+9. Account for the student's transportation and time constraints.
+10. Do NOT use generic filler. Every action must be concrete and doable.
+11. Weeks should cycle through the student's goals, ensuring all goals get coverage.
+12. If the student has limited time, keep weekly actions to 3 items max.`;
+}
+
+// ── Call LLM ──
+async function callLLM(profile: ProfileInput): Promise<unknown> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+  const systemPrompt = buildSystemPrompt(profile);
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: `Create a personalized 12-week plan for this student. Make every action specific and every resource real and accessible. Use the create_plan tool.`,
+        },
+      ],
+      tools: [planToolSchema],
+      tool_choice: { type: "function", function: { name: "create_plan" } },
+    }),
+  });
+
+  if (!response.ok) {
+    const status = response.status;
+    const text = await response.text();
+    if (status === 429) throw new Error("RATE_LIMITED");
+    if (status === 402) throw new Error("PAYMENT_REQUIRED");
+    console.error("LLM error:", status, text);
+    throw new Error(`LLM returned ${status}`);
+  }
+
+  const data = await response.json();
+  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+  if (!toolCall?.function?.arguments) {
+    throw new Error("NO_TOOL_CALL");
+  }
+
+  return JSON.parse(toolCall.function.arguments);
+}
+
+// ── Validate structure (lightweight, no zod in Deno) ──
+interface WeekAction {
+  task: string;
+  resource: string;
+  access: string;
+  how_to_use: string;
+  time_estimate: string;
+}
+
+interface Week {
+  week: number;
+  focus: string;
+  actions: WeekAction[];
+  milestone: string;
+}
+
+function validatePlan(raw: unknown): Week[] {
+  const obj = raw as { weeks?: unknown[] };
+  if (!obj?.weeks || !Array.isArray(obj.weeks) || obj.weeks.length !== 12) {
+    throw new Error("INVALID_PLAN: Must have exactly 12 weeks");
+  }
+
+  return obj.weeks.map((w: unknown, i: number) => {
+    const week = w as Record<string, unknown>;
+    if (!week.focus || typeof week.focus !== "string") throw new Error(`INVALID_PLAN: Week ${i + 1} missing focus`);
+    if (!week.milestone || typeof week.milestone !== "string") throw new Error(`INVALID_PLAN: Week ${i + 1} missing milestone`);
+    if (!Array.isArray(week.actions) || week.actions.length < 3) throw new Error(`INVALID_PLAN: Week ${i + 1} needs 3+ actions`);
+
+    const actions = (week.actions as Record<string, unknown>[]).map((a, j) => {
+      if (!a.task || !a.resource || !a.access || !a.how_to_use || !a.time_estimate) {
+        throw new Error(`INVALID_PLAN: Week ${i + 1}, action ${j + 1} missing fields`);
+      }
+      return {
+        task: String(a.task),
+        resource: String(a.resource),
+        access: String(a.access),
+        how_to_use: String(a.how_to_use),
+        time_estimate: String(a.time_estimate),
+      };
+    });
+
+    return {
+      week: i + 1,
+      focus: String(week.focus),
+      actions,
+      milestone: String(week.milestone),
+    };
+  });
+}
+
+// ── Save to DB ──
+async function savePlan(userId: string, title: string, weeks: Week[], profile: ProfileInput) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const { data: plan, error: planErr } = await supabase
+    .from("plans")
+    .insert({
+      user_id: userId,
+      title,
+      profile_snapshot: profile,
+    })
+    .select("id")
+    .single();
+
+  if (planErr || !plan) throw new Error(`DB_ERROR: ${planErr?.message}`);
+
+  const weekRows = weeks.map((w) => ({
+    plan_id: plan.id,
+    week_number: w.week,
+    focus: w.focus,
+    milestone: w.milestone,
+    actions: w.actions,
+  }));
+
+  const { error: weekErr } = await supabase.from("plan_weeks").insert(weekRows);
+  if (weekErr) throw new Error(`DB_ERROR: ${weekErr.message}`);
+
+  return plan.id;
+}
+
+// ── Main handler ──
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const { profile, userId } = await req.json();
+
+    if (!profile || !userId) {
+      return new Response(JSON.stringify({ error: "Missing profile or userId" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Call LLM with retry
+    let plan: unknown;
+    try {
+      plan = await callLLM(profile);
+    } catch (e) {
+      if (e instanceof Error && e.message === "NO_TOOL_CALL") {
+        console.log("Retrying LLM call...");
+        plan = await callLLM(profile);
+      } else {
+        throw e;
+      }
+    }
+
+    // Validate
+    const weeks = validatePlan(plan);
+
+    // Save to DB
+    const goals = profile.goals?.join(" & ") || "Academic Growth";
+    const title = `12-Week Plan: ${goals}`;
+    const planId = await savePlan(userId, title, weeks, profile);
+
+    return new Response(
+      JSON.stringify({ planId, weeks }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    console.error("generate-plan error:", msg);
+
+    if (msg === "RATE_LIMITED") {
+      return new Response(JSON.stringify({ error: "AI is busy — please try again in a moment." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (msg === "PAYMENT_REQUIRED") {
+      return new Response(JSON.stringify({ error: "AI credits exhausted. Please try again later." }), {
+        status: 402,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

@@ -3,9 +3,11 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
 import { fetchMatchingResources, type Resource } from '@/lib/resourceService';
-import { generatePlanWeeks } from '@/lib/planGenerator';
+import { generateLLMPlan } from '@/lib/llmPlanService';
 import type { Plan } from '@/lib/types';
-import { DollarSign, Clock, Star, Check, Loader2, MapPin } from 'lucide-react';
+import { generatePlanWeeks } from '@/lib/planGenerator';
+import { DollarSign, Clock, Star, Check, Loader2, MapPin, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 
 type Category = 'free' | 'low_cost' | 'paid';
 type TimeCategory = 'quick' | 'moderate' | 'intensive';
@@ -18,7 +20,6 @@ function costCategory(r: Resource): Category {
 }
 
 function timeCategory(r: Resource): TimeCategory {
-  // Heuristic: virtual/online = quick, local = moderate, career programs = intensive
   if (r.transportation === 'virtual') return 'quick';
   if (['career_program', 'mentorship'].includes(r.category)) return 'intensive';
   return 'moderate';
@@ -53,6 +54,7 @@ export default function Recommendations() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [groupBy, setGroupBy] = useState<'cost' | 'time' | 'match' | 'distance'>('match');
   const [generating, setGenerating] = useState(false);
+  const [genStatus, setGenStatus] = useState('');
 
   const profile = user ? storage.allProfiles().find(p => p.userId === user.id) : null;
 
@@ -131,22 +133,61 @@ export default function Recommendations() {
           items,
         }));
     }
-    // match: top match as single group
     return [{ key: 'match', label: 'Best Matches For You', desc: 'Ranked by relevance to your profile', items: resources }];
   };
 
   const confirm = async () => {
     setGenerating(true);
-    const selectedResources = resources.filter(r => selected.has(r.id));
-    const planId = crypto.randomUUID();
-    const weeks = generatePlanWeeks(profile, planId, selectedResources);
-    const plan: Plan = {
-      id: planId, userId: user.id, profileId: profile.id,
-      title: '12-Week Game Plan', createdAt: new Date().toISOString(), weeks,
-    };
-    storage.savePlans([...storage.allPlans().filter(p => p.userId !== user.id), plan]);
-    setGenerating(false);
-    nav('/dashboard');
+    setGenStatus('Building your personalized plan with AI...');
+
+    try {
+      // Try LLM-powered generation first
+      const result = await generateLLMPlan(profile, user.id);
+
+      // Also save a local copy for the existing dashboard compatibility
+      const localWeeks = result.weeks.map((w, i) => ({
+        id: crypto.randomUUID(),
+        planId: result.planId,
+        weekNumber: w.week,
+        focus: w.focus,
+        actions: w.actions.map(a => a.task),
+        resources: w.actions.map(a => `${a.resource} — ${a.access}`),
+        milestones: [w.milestone],
+      }));
+
+      const plan: Plan = {
+        id: result.planId,
+        userId: user.id,
+        profileId: profile.id,
+        title: `12-Week Plan: ${profile.goals.join(' & ')}`,
+        createdAt: new Date().toISOString(),
+        weeks: localWeeks,
+      };
+      storage.savePlans([...storage.allPlans().filter(p => p.userId !== user.id), plan]);
+
+      // Store the structured weeks separately for the enhanced dashboard
+      localStorage.setItem(`gp_structured_weeks_${user.id}`, JSON.stringify(result.weeks));
+
+      toast.success('Your personalized plan is ready!');
+      nav('/dashboard');
+    } catch (err) {
+      console.error('LLM plan generation failed, falling back:', err);
+      toast.error('AI generation had an issue — using smart template instead.');
+
+      // Fallback to deterministic generation
+      const selectedResources = resources.filter(r => selected.has(r.id));
+      const planId = crypto.randomUUID();
+      const weeks = generatePlanWeeks(profile, planId, selectedResources);
+      const plan: Plan = {
+        id: planId, userId: user.id, profileId: profile.id,
+        title: '12-Week Game Plan', createdAt: new Date().toISOString(), weeks,
+      };
+      storage.savePlans([...storage.allPlans().filter(p => p.userId !== user.id), plan]);
+      nav('/dashboard');
+    } finally {
+      setGenerating(false);
+      setGenStatus('');
+    }
   };
 
   const canConfirm = selected.size >= MIN_SELECTIONS && selected.size <= MAX_SELECTIONS;
@@ -193,9 +234,9 @@ export default function Recommendations() {
           </div>
         ) : resources.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-muted-foreground">No resources found. Your plan will use default recommendations.</p>
-            <button onClick={() => { nav('/dashboard'); }} className="mt-4 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground">
-              Continue to Dashboard
+            <p className="text-muted-foreground">No resources found. Your plan will use AI-recommended resources.</p>
+            <button onClick={confirm} className="mt-4 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground">
+              Generate AI Plan
             </button>
           </div>
         ) : (
@@ -249,8 +290,22 @@ export default function Recommendations() {
         )}
       </div>
 
+      {/* Generating overlay */}
+      {generating && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="text-center space-y-4 p-8">
+            <div className="flex items-center justify-center gap-2">
+              <Sparkles className="w-6 h-6 text-primary animate-pulse" />
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+            <p className="text-lg font-semibold text-foreground">{genStatus}</p>
+            <p className="text-sm text-muted-foreground">This usually takes 15–30 seconds.</p>
+          </div>
+        </div>
+      )}
+
       {/* Sticky footer */}
-      {resources.length > 0 && (
+      {resources.length > 0 && !generating && (
         <div className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-sm">
           <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
@@ -261,9 +316,10 @@ export default function Recommendations() {
             <button
               disabled={!canConfirm || generating}
               onClick={confirm}
-              className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
             >
-              {generating ? 'Generating Plan...' : 'Build My Game Plan →'}
+              <Sparkles className="w-4 h-4" />
+              {generating ? 'Generating Plan...' : 'Build My AI Game Plan →'}
             </button>
           </div>
         </div>
