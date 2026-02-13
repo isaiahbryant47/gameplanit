@@ -3,14 +3,21 @@ import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
 import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
 import { generateLLMPlan, type StructuredWeek, type StructuredAction } from '@/lib/llmPlanService';
-import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle, CheckSquare, Square, Trophy, BookOpen, Clock, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle, CheckSquare, Square, Trophy, BookOpen, Clock, Sparkles, Compass, ArrowRight } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import ResourceDiscovery from '@/components/ResourceDiscovery';
 import PlanCalendarView from '@/components/PlanCalendarView';
 import StudentProfile from '@/components/StudentProfile';
 import KpiSection from '@/components/KpiSection';
 import AdherencePrediction from '@/components/AdherencePrediction';
+import UnlockedOpportunities from '@/components/UnlockedOpportunities';
 import { toast } from 'sonner';
+
+const domainLabels: Record<string, { label: string; emoji: string }> = {
+  career: { label: 'Career', emoji: '💼' },
+  college: { label: 'College', emoji: '🎓' },
+  health_fitness: { label: 'Health & Fitness', emoji: '💪' },
+};
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -48,6 +55,14 @@ export default function Dashboard() {
     );
   }
 
+  // Calculate completion rate for unlock rules
+  const totalActions = plan.weeks.reduce((sum, w) => sum + w.actions.length, 0);
+  const completedCount = plan.weeks.reduce((sum, w) =>
+    sum + w.actions.filter((_, i) => progress.completedActions[`${w.id}-${i}`]).length, 0
+  );
+  const completionRate = totalActions > 0 ? completedCount / totalActions : 0;
+  const cycleNumber = plan.cycleNumber || 1;
+
   const regenerate = async () => {
     try {
       toast.info('Regenerating your plan with AI...');
@@ -84,6 +99,8 @@ export default function Dashboard() {
     w.document.close();
     w.print();
   };
+
+  const domainInfo = profile.goalDomain ? domainLabels[profile.goalDomain] : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -125,6 +142,37 @@ export default function Dashboard() {
 
       {/* Weeks */}
       <div className="max-w-4xl mx-auto px-6 py-6 space-y-4">
+        {/* Pathway Header */}
+        {(profile.goalDomain || profile.outcomeStatement) && (
+          <div className="rounded-xl border border-primary/20 bg-accent/30 p-5 space-y-2">
+            <div className="flex items-center gap-3">
+              <Compass className="w-5 h-5 text-primary" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {domainInfo && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                      {domainInfo.emoji} {domainInfo.label}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                    Cycle {cycleNumber}
+                  </span>
+                </div>
+                {profile.outcomeStatement && (
+                  <p className="text-sm font-medium text-card-foreground mt-1">{profile.outcomeStatement}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span>{Math.round(completionRate * 100)}% complete</span>
+              {profile.targetDate && <span>Target: {profile.targetDate.replace('_', ' ')}</span>}
+            </div>
+            <div className="h-2 rounded-full bg-secondary overflow-hidden">
+              <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${completionRate * 100}%` }} />
+            </div>
+          </div>
+        )}
+
         {/* Student Profile */}
         {showProfile && (
           <StudentProfile
@@ -146,6 +194,36 @@ export default function Dashboard() {
         {/* KPIs */}
         <KpiSection plan={plan} profile={profile} userId={user.id} />
 
+        {/* Unlocked Opportunities */}
+        {profile.pathwayId && (
+          <UnlockedOpportunities
+            pathwayId={profile.pathwayId}
+            completionRate={completionRate}
+            cycleNumber={cycleNumber}
+          />
+        )}
+
+        {/* Next Cycle CTA */}
+        {completionRate >= 0.8 && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                Ready for Cycle {cycleNumber + 1}?
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                You've made great progress. Start your next 12-week cycle to keep building.
+              </p>
+            </div>
+            <button
+              onClick={() => toast.info('Cycle 2 generation coming soon!')}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              Start Cycle {cycleNumber + 1} <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* AI Resource Discovery */}
         <ResourceDiscovery profile={profile} />
 
@@ -157,7 +235,6 @@ export default function Dashboard() {
             // Group weeks by goal
             const goalMap = new Map<string, typeof plan.weeks>();
             plan.weeks.forEach(week => {
-              // Extract goal from focus string (format: "theme - goal")
               const goal = week.focus.includes(' - ') ? week.focus.split(' - ').slice(1).join(' - ') : week.focus;
               if (!goalMap.has(goal)) goalMap.set(goal, []);
               goalMap.get(goal)!.push(week);
@@ -218,7 +295,6 @@ export default function Dashboard() {
                   <div className="divide-y divide-border">
                     {weeks.map(week => {
                       const theme = week.focus.includes(' - ') ? week.focus.split(' - ')[0] : '';
-                      // Find matching structured week for rich action data
                       const sWeek = structuredWeeks.find(sw => sw.week === week.weekNumber);
                       return (
                         <div key={week.id} className="px-5 py-4 space-y-3">
@@ -320,7 +396,6 @@ export default function Dashboard() {
                           delete updated.completedGoals[goal];
                         } else {
                           updated.completedGoals[goal] = new Date().toISOString();
-                          // Also check all actions
                           const allKeys = weeks.flatMap(w => w.actions.map((_, i) => `${w.id}-${i}`));
                           updated.completedActions = { ...updated.completedActions };
                           allKeys.forEach(k => { updated.completedActions[k] = true; });

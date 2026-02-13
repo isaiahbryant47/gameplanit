@@ -35,6 +35,12 @@ export async function generateLLMPlan(
         zipCode: profile.zipCode,
         constraints: profile.constraints,
         baseline: profile.baseline,
+        // Pathway fields
+        goalDomain: profile.goalDomain,
+        pathwayId: profile.pathwayId,
+        outcomeStatement: profile.outcomeStatement,
+        targetDate: profile.targetDate,
+        domainBaseline: profile.domainBaseline,
       },
     },
   });

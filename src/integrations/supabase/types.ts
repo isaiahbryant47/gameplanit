@@ -14,6 +14,114 @@ export type Database = {
   }
   public: {
     Tables: {
+      opportunities: {
+        Row: {
+          created_at: string
+          description: string
+          domain: Database["public"]["Enums"]["goal_domain"]
+          id: string
+          is_active: boolean
+          next_step_cta_label: string
+          next_step_url: string | null
+          requirements_json: Json
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          domain: Database["public"]["Enums"]["goal_domain"]
+          id?: string
+          is_active?: boolean
+          next_step_cta_label?: string
+          next_step_url?: string | null
+          requirements_json?: Json
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          domain?: Database["public"]["Enums"]["goal_domain"]
+          id?: string
+          is_active?: boolean
+          next_step_cta_label?: string
+          next_step_url?: string | null
+          requirements_json?: Json
+          title?: string
+        }
+        Relationships: []
+      }
+      pathway_opportunities: {
+        Row: {
+          created_at: string
+          id: string
+          opportunity_id: string
+          pathway_id: string
+          unlock_rule_json: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          opportunity_id: string
+          pathway_id: string
+          unlock_rule_json?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          opportunity_id?: string
+          pathway_id?: string
+          unlock_rule_json?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pathway_opportunities_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pathway_opportunities_pathway_id_fkey"
+            columns: ["pathway_id"]
+            isOneToOne: false
+            referencedRelation: "pathways"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pathways: {
+        Row: {
+          created_at: string
+          default_milestones: Json
+          description: string
+          domain: Database["public"]["Enums"]["goal_domain"]
+          id: string
+          is_active: boolean
+          tags: string[]
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          default_milestones?: Json
+          description: string
+          domain: Database["public"]["Enums"]["goal_domain"]
+          id?: string
+          is_active?: boolean
+          tags?: string[]
+          title: string
+        }
+        Update: {
+          created_at?: string
+          default_milestones?: Json
+          description?: string
+          domain?: Database["public"]["Enums"]["goal_domain"]
+          id?: string
+          is_active?: boolean
+          tags?: string[]
+          title?: string
+        }
+        Relationships: []
+      }
       plan_weeks: {
         Row: {
           actions: Json
@@ -55,26 +163,49 @@ export type Database = {
       plans: {
         Row: {
           created_at: string
+          cycle_number: number
+          goal_domain: string | null
           id: string
+          outcome_statement: string | null
+          pathway_id: string | null
           profile_snapshot: Json
+          target_date: string | null
           title: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          cycle_number?: number
+          goal_domain?: string | null
           id?: string
+          outcome_statement?: string | null
+          pathway_id?: string | null
           profile_snapshot?: Json
+          target_date?: string | null
           title: string
           user_id: string
         }
         Update: {
           created_at?: string
+          cycle_number?: number
+          goal_domain?: string | null
           id?: string
+          outcome_statement?: string | null
+          pathway_id?: string | null
           profile_snapshot?: Json
+          target_date?: string | null
           title?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "plans_pathway_id_fkey"
+            columns: ["pathway_id"]
+            isOneToOne: false
+            referencedRelation: "pathways"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       prediction_snapshots: {
         Row: {
@@ -172,6 +303,70 @@ export type Database = {
         }
         Relationships: []
       }
+      user_pathways: {
+        Row: {
+          created_at: string
+          id: string
+          pathway_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pathway_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pathway_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_pathways_pathway_id_fkey"
+            columns: ["pathway_id"]
+            isOneToOne: false
+            referencedRelation: "pathways"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_unlocked_opportunities: {
+        Row: {
+          id: string
+          opportunity_id: string
+          reason: string | null
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          opportunity_id: string
+          reason?: string | null
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          opportunity_id?: string
+          reason?: string | null
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_unlocked_opportunities_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_checkins: {
         Row: {
           completed_actions_count: number
@@ -219,6 +414,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      goal_domain: "college" | "career" | "health_fitness"
       resource_category:
         | "online_learning"
         | "local_opportunity"
@@ -354,6 +550,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      goal_domain: ["college", "career", "health_fitness"],
       resource_category: [
         "online_learning",
         "local_opportunity",
