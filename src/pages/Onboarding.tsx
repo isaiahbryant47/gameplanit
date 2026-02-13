@@ -41,6 +41,21 @@ const responsibilityOptions = [
   { value: 'other', label: 'Other' },
 ];
 
+const interestOptions = [
+  { value: 'internships', label: '💼 Internships' },
+  { value: 'volunteering', label: '🤝 Volunteering' },
+  { value: 'college_help', label: '🎓 College help' },
+  { value: 'tutoring', label: '📚 Tutoring' },
+  { value: 'technology', label: '💻 Technology' },
+  { value: 'arts', label: '🎨 Arts & creativity' },
+  { value: 'sports', label: '⚽ Sports & fitness' },
+  { value: 'music', label: '🎵 Music' },
+  { value: 'leadership', label: '🏅 Leadership' },
+  { value: 'entrepreneurship', label: '🚀 Entrepreneurship' },
+  { value: 'trades', label: '🔧 Skilled trades' },
+  { value: 'mental_health', label: '🧠 Mental health & wellness' },
+];
+
 export default function Onboarding() {
   const { register, user } = useAuth();
   const nav = useNavigate();
@@ -49,7 +64,7 @@ export default function Onboarding() {
   const [showPassword, setShowPassword] = useState(false);
   const [f, setF] = useState({
     email: '', password: '', type: 'student' as 'student' | 'caregiver',
-    gradeLevel: '9', schoolName: '', zipCode: '', interests: 'technology',
+    gradeLevel: '9', schoolName: '', zipCode: '', interests: [] as string[],
     timePerWeekHours: 4, budgetPerMonth: 20, transportation: 'public' as Transportation,
     responsibilities: [] as string[], goals: 'career exposure', gpa: '', attendance: ''
   });
@@ -67,7 +82,7 @@ export default function Onboarding() {
     const profile: Profile = {
       id: crypto.randomUUID(), userId: current.id, type: f.type, gradeLevel: f.gradeLevel,
       schoolName: f.schoolName || undefined, zipCode: finalZip,
-      interests: f.interests.split(',').map(s => s.trim()).filter(Boolean),
+      interests: f.interests,
       constraints: { timePerWeekHours: Number(f.timePerWeekHours), budgetPerMonth: Number(f.budgetPerMonth), transportation: f.transportation, responsibilities: f.responsibilities.filter(r => r !== 'none').join(', ') },
       goals: f.goals.split(',').map(s => s.trim()).filter(Boolean),
       baseline: { gpa: f.gpa ? Number(f.gpa) : undefined, attendance: f.attendance ? Number(f.attendance) : undefined }
@@ -138,7 +153,28 @@ export default function Onboarding() {
                 <input className="rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="ZIP code" value={f.zipCode} onChange={e => setF({ ...f, zipCode: e.target.value })} />
               </div>
               <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="School name (optional)" value={f.schoolName} onChange={e => setF({ ...f, schoolName: e.target.value })} />
-              <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Interests (comma-separated)" value={f.interests} onChange={e => setF({ ...f, interests: e.target.value })} />
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">What are you interested in? (select all that apply)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {interestOptions.map(o => {
+                    const selected = f.interests.includes(o.value);
+                    return (
+                      <button
+                        key={o.value}
+                        onClick={() => {
+                          const next = selected
+                            ? f.interests.filter(i => i !== o.value)
+                            : [...f.interests, o.value];
+                          setF({ ...f, interests: next });
+                        }}
+                        className={`rounded-lg border px-3 py-2.5 text-sm text-left transition-colors ${selected ? 'border-primary bg-accent text-accent-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}
+                      >
+                        {o.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Goals (comma-separated)" value={f.goals} onChange={e => setF({ ...f, goals: e.target.value })} />
             </>
           )}
