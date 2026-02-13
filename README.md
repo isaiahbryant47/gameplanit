@@ -59,6 +59,43 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+- Recharts (data visualization)
+- Supabase (resources DB + anonymized analytics)
+
+## Predictive Analytics (v1)
+
+### Overview
+A rules-based, explainable adherence predictor that scores next-week plan adherence probability (0–100%) for each student. The system:
+
+1. **Predicts** adherence using completion rate, streak, plan complexity, and time availability
+2. **Flags** at-risk students (probability < 55% or last-week completion < 35%)
+3. **Auto-adapts** plans with micro-actions when risk is high
+4. **Reports** aggregated, anonymized metrics to partner admins
+
+### Architecture
+- **Predictor**: `src/lib/predict/adherence.ts` — deterministic scoring, swappable for ML
+- **Analytics Service**: `src/lib/predict/analyticsService.ts` — hashes user IDs (SHA-256), syncs to Supabase
+- **DB Tables**: `weekly_checkins` + `prediction_snapshots` (anonymized, no PII)
+- **Dashboard**: `AdherencePrediction` component shows probability gauge + drivers
+- **Partner View**: `PartnerAnalytics` tab with aggregated charts by grade, hours, transportation
+
+### Seeded Logins
+| Role | Email | Password |
+|------|-------|----------|
+| Partner Admin | partner@gameplanit.org | admin1234 |
+| Student | student@gameplanit.org | student1234 |
+
+### Where to See Predictions
+- **Student Dashboard** (`/dashboard`): "Predictive Insights" card at top
+- **Partner Dashboard** (`/partner`): "Predictive Analytics" tab
+
+### Running Tests
+```sh
+npx vitest run src/test/adherence.test.ts
+```
+
+### Swapping to ML
+Replace the `predictAdherence()` function body in `src/lib/predict/adherence.ts` with model inference. The interface (`AdherenceInput → AdherenceResult`) stays the same. The analytics pipeline (checkins → predictions → partner view) is already wired.
 
 ## How can I deploy this project?
 
