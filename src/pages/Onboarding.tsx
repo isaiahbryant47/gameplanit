@@ -1,0 +1,164 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { z } from 'zod';
+import { useAuth } from '@/hooks/useAuth';
+import { generatePlanWeeks } from '@/lib/planGenerator';
+import { storage } from '@/lib/storage';
+import { Plan, Profile, Transportation } from '@/lib/types';
+
+const schema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  zipCode: z.string().min(5, 'Enter a valid ZIP code'),
+  responsibilities: z.string().min(2, 'Describe your responsibilities')
+});
+
+const transportOptions: { value: Transportation; label: string }[] = [
+  { value: 'walk', label: 'Walking' },
+  { value: 'public', label: 'Public transit' },
+  { value: 'car', label: 'Car' },
+  { value: 'mixed', label: 'Mixed' },
+];
+
+export default function Onboarding() {
+  const { register, user } = useAuth();
+  const nav = useNavigate();
+  const [step, setStep] = useState(1);
+  const [error, setError] = useState('');
+  const [f, setF] = useState({
+    email: '', password: '', type: 'student' as 'student' | 'caregiver',
+    gradeLevel: '9', schoolName: '', zipCode: '', interests: 'technology',
+    timePerWeekHours: 4, budgetPerMonth: 20, transportation: 'public' as Transportation,
+    responsibilities: '', goals: 'career exposure', gpa: '', attendance: ''
+  });
+
+  const submit = () => {
+    const valid = schema.safeParse({ email: f.email, password: f.password, zipCode: f.zipCode, responsibilities: f.responsibilities });
+    if (!valid.success) return setError(valid.error.issues[0].message);
+    const current = user || register(f.email, f.password, f.type);
+    if (!current) return setError('Email already exists. Login instead.');
+
+    const profile: Profile = {
+      id: crypto.randomUUID(), userId: current.id, type: f.type, gradeLevel: f.gradeLevel,
+      schoolName: f.schoolName || undefined, zipCode: f.zipCode,
+      interests: f.interests.split(',').map(s => s.trim()).filter(Boolean),
+      constraints: { timePerWeekHours: Number(f.timePerWeekHours), budgetPerMonth: Number(f.budgetPerMonth), transportation: f.transportation, responsibilities: f.responsibilities },
+      goals: f.goals.split(',').map(s => s.trim()).filter(Boolean),
+      baseline: { gpa: f.gpa ? Number(f.gpa) : undefined, attendance: f.attendance ? Number(f.attendance) : undefined }
+    };
+
+    storage.saveProfiles([...storage.allProfiles().filter(p => p.userId !== current.id), profile]);
+    const planId = crypto.randomUUID();
+    const plan: Plan = { id: planId, userId: current.id, profileId: profile.id, title: '12-Week Game Plan', createdAt: new Date().toISOString(), weeks: generatePlanWeeks(profile, planId) };
+    storage.savePlans([...storage.allPlans().filter(p => p.userId !== current.id), plan]);
+    nav('/dashboard');
+  };
+
+  const stepTitles = ['Account', 'About You', 'Constraints'];
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="w-full max-w-lg rounded-xl bg-card border border-border p-8 shadow-sm space-y-6">
+        {/* Progress */}
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm text-muted-foreground">
+            {stepTitles.map((t, i) => (
+              <span key={t} className={i + 1 <= step ? 'text-primary font-medium' : ''}>{t}</span>
+            ))}
+          </div>
+          <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+            <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${(step / 3) * 100}%` }} />
+          </div>
+        </div>
+
+        <h1 className="text-2xl font-bold text-card-foreground">
+          {step === 1 && 'Create your account'}
+          {step === 2 && 'Tell us about yourself'}
+          {step === 3 && 'Your constraints'}
+        </h1>
+
+        <div className="space-y-3">
+          {step === 1 && (
+            <>
+              <div className="flex gap-2">
+                {(['student', 'caregiver'] as const).map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setF({ ...f, type: r })}
+                    className={`flex-1 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${f.type === r ? 'border-primary bg-accent text-accent-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}
+                  >
+                    {r === 'student' ? '🎓 Student' : '👨‍👩‍👧 Caregiver'}
+                  </button>
+                ))}
+              </div>
+              <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} />
+              <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" type="password" placeholder="Password (min 6 chars)" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} />
+            </>
+          )}
+          {step === 2 && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <input className="rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Grade level" value={f.gradeLevel} onChange={e => setF({ ...f, gradeLevel: e.target.value })} />
+                <input className="rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="ZIP code" value={f.zipCode} onChange={e => setF({ ...f, zipCode: e.target.value })} />
+              </div>
+              <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="School name (optional)" value={f.schoolName} onChange={e => setF({ ...f, schoolName: e.target.value })} />
+              <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Interests (comma-separated)" value={f.interests} onChange={e => setF({ ...f, interests: e.target.value })} />
+              <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Goals (comma-separated)" value={f.goals} onChange={e => setF({ ...f, goals: e.target.value })} />
+            </>
+          )}
+          {step === 3 && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Hours per week</label>
+                  <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" type="number" value={f.timePerWeekHours} onChange={e => setF({ ...f, timePerWeekHours: Number(e.target.value) })} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Budget per month ($)</label>
+                  <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" type="number" value={f.budgetPerMonth} onChange={e => setF({ ...f, budgetPerMonth: Number(e.target.value) })} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Transportation</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {transportOptions.map(t => (
+                    <button
+                      key={t.value}
+                      onClick={() => setF({ ...f, transportation: t.value })}
+                      className={`rounded-lg border px-3 py-2 text-sm transition-colors ${f.transportation === t.value ? 'border-primary bg-accent text-accent-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsibilities</label>
+                <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="e.g. Sibling care, part-time job" value={f.responsibilities} onChange={e => setF({ ...f, responsibilities: e.target.value })} />
+              </div>
+            </>
+          )}
+        </div>
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <div className="flex gap-3">
+          {step > 1 && (
+            <button className="rounded-lg border border-border px-5 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors" onClick={() => { setError(''); setStep(step - 1); }}>
+              Back
+            </button>
+          )}
+          {step < 3 ? (
+            <button className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity" onClick={() => { setError(''); setStep(step + 1); }}>
+              Next
+            </button>
+          ) : (
+            <button className="rounded-lg bg-success px-5 py-2.5 text-sm font-medium text-success-foreground hover:opacity-90 transition-opacity" onClick={submit}>
+              Generate My Plan
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
