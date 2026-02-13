@@ -2,11 +2,12 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
 import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
-import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle } from 'lucide-react';
+import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle, CheckSquare, Square } from 'lucide-react';
 import { useState } from 'react';
 import ResourceDiscovery from '@/components/ResourceDiscovery';
 import PlanCalendarView from '@/components/PlanCalendarView';
 import StudentProfile from '@/components/StudentProfile';
+import KpiSection from '@/components/KpiSection';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -14,6 +15,7 @@ export default function Dashboard() {
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [showProfile, setShowProfile] = useState(false);
+  const [progress, setProgress] = useState(() => user ? storage.getProgress(user.id) : { completedActions: {}, resourcesEngaged: [] as string[], academicLog: [] as { date: string; gpa?: number; attendance?: number }[] });
 
   if (!user) return <Navigate to="/login" />;
   const profile = storage.allProfiles().find((p) => p.userId === user.id);
@@ -97,6 +99,9 @@ export default function Dashboard() {
           />
         )}
 
+        {/* KPIs */}
+        <KpiSection plan={plan} profile={profile} userId={user.id} />
+
         {/* AI Resource Discovery */}
         <ResourceDiscovery profile={profile} />
 
@@ -142,12 +147,25 @@ export default function Dashboard() {
                           <div>
                             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Actions</h4>
                             <ul className="space-y-1.5">
-                              {week.actions.map((a, i) => (
-                                <li key={i} className="flex items-start gap-2 text-sm text-card-foreground">
-                                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                                  {a}
-                                </li>
-                              ))}
+                              {week.actions.map((a, i) => {
+                                const actionKey = `${week.id}-${i}`;
+                                const done = !!progress.completedActions[actionKey];
+                                return (
+                                  <li key={i} className="flex items-start gap-2 text-sm text-card-foreground">
+                                    <button
+                                      onClick={() => {
+                                        const updated = { ...progress, completedActions: { ...progress.completedActions, [actionKey]: !done } };
+                                        setProgress(updated);
+                                        storage.saveProgress(user.id, updated);
+                                      }}
+                                      className="mt-0.5 shrink-0"
+                                    >
+                                      {done ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />}
+                                    </button>
+                                    <span className={done ? 'line-through text-muted-foreground' : ''}>{a}</span>
+                                  </li>
+                                );
+                              })}
                             </ul>
                           </div>
                           <div>
