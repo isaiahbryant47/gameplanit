@@ -9,8 +9,6 @@ import { Plan, Profile, Transportation } from '@/lib/types';
 const schema = z.object({
   email: z.string().email(),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  zipCode: z.string().min(5, 'Enter a valid ZIP code'),
-  responsibilities: z.string().min(2, 'Describe your responsibilities')
 });
 
 const transportOptions: { value: Transportation; label: string }[] = [
@@ -25,6 +23,7 @@ export default function Onboarding() {
   const nav = useNavigate();
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [f, setF] = useState({
     email: '', password: '', type: 'student' as 'student' | 'caregiver',
     gradeLevel: '9', schoolName: '', zipCode: '', interests: 'technology',
@@ -35,15 +34,16 @@ export default function Onboarding() {
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
-    const valid = schema.safeParse({ email: f.email, password: f.password, zipCode: f.zipCode, responsibilities: f.responsibilities });
+    const valid = schema.safeParse({ email: f.email, password: f.password });
     if (!valid.success) return setError(valid.error.issues[0].message);
+    const finalZip = f.zipCode.trim() || '191';
     const current = user || register(f.email, f.password, f.type);
     if (!current) return setError('Email already exists. Login instead.');
 
     setSubmitting(true);
     const profile: Profile = {
       id: crypto.randomUUID(), userId: current.id, type: f.type, gradeLevel: f.gradeLevel,
-      schoolName: f.schoolName || undefined, zipCode: f.zipCode,
+      schoolName: f.schoolName || undefined, zipCode: finalZip,
       interests: f.interests.split(',').map(s => s.trim()).filter(Boolean),
       constraints: { timePerWeekHours: Number(f.timePerWeekHours), budgetPerMonth: Number(f.budgetPerMonth), transportation: f.transportation, responsibilities: f.responsibilities },
       goals: f.goals.split(',').map(s => s.trim()).filter(Boolean),
@@ -97,7 +97,12 @@ export default function Onboarding() {
                 ))}
               </div>
               <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} />
-              <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" type="password" placeholder="Password (min 6 chars)" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} />
+              <div className="relative">
+                <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring pr-16" type={showPassword ? 'text' : 'password'} placeholder="Password (min 6 chars)" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </>
           )}
           {step === 2 && (
