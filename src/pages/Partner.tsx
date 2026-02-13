@@ -30,7 +30,7 @@ export default function Partner() {
   return (
     <div className="min-h-screen bg-background">
       {/* Page Label */}
-      <div className="absolute top-4 left-4 z-10">
+      <div className="fixed bottom-4 right-4 z-10">
         <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">Partner Dashboard</span>
       </div>
       {/* Header */}
