@@ -14,7 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      resources: {
+        Row: {
+          category: Database["public"]["Enums"]["resource_category"]
+          cost_dollars: number
+          created_at: string
+          created_by: string | null
+          description: string
+          grade_levels: string[]
+          id: string
+          is_active: boolean
+          is_free: boolean
+          tags: string[]
+          title: string
+          transportation: Database["public"]["Enums"]["transport_mode"]
+          updated_at: string
+          url: string | null
+          zip_prefixes: string[]
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["resource_category"]
+          cost_dollars?: number
+          created_at?: string
+          created_by?: string | null
+          description: string
+          grade_levels?: string[]
+          id?: string
+          is_active?: boolean
+          is_free?: boolean
+          tags?: string[]
+          title: string
+          transportation?: Database["public"]["Enums"]["transport_mode"]
+          updated_at?: string
+          url?: string | null
+          zip_prefixes?: string[]
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["resource_category"]
+          cost_dollars?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          grade_levels?: string[]
+          id?: string
+          is_active?: boolean
+          is_free?: boolean
+          tags?: string[]
+          title?: string
+          transportation?: Database["public"]["Enums"]["transport_mode"]
+          updated_at?: string
+          url?: string | null
+          zip_prefixes?: string[]
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +76,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      resource_category:
+        | "online_learning"
+        | "local_opportunity"
+        | "scholarship"
+        | "mentorship"
+        | "community_event"
+        | "career_program"
+      transport_mode: "walk" | "public" | "car" | "mixed" | "virtual"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +210,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      resource_category: [
+        "online_learning",
+        "local_opportunity",
+        "scholarship",
+        "mentorship",
+        "community_event",
+        "career_program",
+      ],
+      transport_mode: ["walk", "public", "car", "mixed", "virtual"],
+    },
   },
 } as const
