@@ -77,6 +77,8 @@ interface ProfileInput {
   outcomeStatement?: string;
   targetDate?: string;
   domainBaseline?: Record<string, string>;
+  cycleNumber?: number;
+  previousCycleSummary?: string;
 }
 
 function buildSystemPrompt(profile: ProfileInput): string {
@@ -133,7 +135,12 @@ REQUIREMENTS:
 10. Do NOT use generic filler. Every action must be concrete and doable.
 11. ${profile.outcomeStatement ? `All weeks must advance toward the student's outcome goal: "${profile.outcomeStatement}".` : "Weeks should cycle through the student's goals, ensuring all goals get coverage."}
 12. If the student has limited time, keep weekly actions to 3 items max.
-${domainLabel ? `13. Each week's focus must map to a sub-goal that builds readiness within the ${domainLabel} pathway.` : ""}`;
+${domainLabel ? `13. Each week's focus must map to a sub-goal that builds readiness within the ${domainLabel} pathway.` : ""}
+${(profile.cycleNumber || 1) > 1 ? `
+CYCLE CONTEXT:
+This is Cycle ${profile.cycleNumber} of the student's pathway. Build on what was accomplished in previous cycles — increase difficulty, introduce new resources, and push toward more advanced milestones.
+${profile.previousCycleSummary ? `\nPREVIOUS CYCLE SUMMARY:\n${profile.previousCycleSummary}` : ""}
+Do NOT repeat actions from earlier cycles. Advance the student further toward their outcome goal.` : ""}`;
 }
 
 // ── Call LLM ──
@@ -244,7 +251,7 @@ async function savePlan(userId: string, title: string, weeks: Week[], profile: P
       title,
       profile_snapshot: profile,
       pathway_id: profile.pathwayId || null,
-      cycle_number: 1,
+      cycle_number: profile.cycleNumber || 1,
       outcome_statement: profile.outcomeStatement || null,
       target_date: profile.targetDate || null,
       goal_domain: profile.goalDomain || null,
