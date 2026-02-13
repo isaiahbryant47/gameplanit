@@ -249,6 +249,74 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          baseline_json: Json | null
+          constraints_json: Json | null
+          created_at: string
+          domain_baseline: Json | null
+          goal_domain: string | null
+          goals: string[] | null
+          grade_level: string | null
+          id: string
+          interests: string[] | null
+          outcome_statement: string | null
+          pathway_id: string | null
+          school_name: string | null
+          target_date: string | null
+          type: string
+          updated_at: string
+          user_id: string
+          zip_code: string | null
+        }
+        Insert: {
+          baseline_json?: Json | null
+          constraints_json?: Json | null
+          created_at?: string
+          domain_baseline?: Json | null
+          goal_domain?: string | null
+          goals?: string[] | null
+          grade_level?: string | null
+          id?: string
+          interests?: string[] | null
+          outcome_statement?: string | null
+          pathway_id?: string | null
+          school_name?: string | null
+          target_date?: string | null
+          type?: string
+          updated_at?: string
+          user_id: string
+          zip_code?: string | null
+        }
+        Update: {
+          baseline_json?: Json | null
+          constraints_json?: Json | null
+          created_at?: string
+          domain_baseline?: Json | null
+          goal_domain?: string | null
+          goals?: string[] | null
+          grade_level?: string | null
+          id?: string
+          interests?: string[] | null
+          outcome_statement?: string | null
+          pathway_id?: string | null
+          school_name?: string | null
+          target_date?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+          zip_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_pathway_id_fkey"
+            columns: ["pathway_id"]
+            isOneToOne: false
+            referencedRelation: "pathways"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resources: {
         Row: {
           category: Database["public"]["Enums"]["resource_category"]
@@ -335,6 +403,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_unlocked_opportunities: {
         Row: {
           id: string
@@ -411,9 +500,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "student" | "caregiver" | "partner_admin"
       goal_domain: "college" | "career" | "health_fitness"
       resource_category:
         | "online_learning"
@@ -550,6 +646,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["student", "caregiver", "partner_admin"],
       goal_domain: ["college", "career", "health_fitness"],
       resource_category: [
         "online_learning",
