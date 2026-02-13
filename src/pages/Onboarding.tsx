@@ -54,7 +54,7 @@ export default function Onboarding() {
     nav('/dashboard');
   };
 
-  const stepTitles = ['Account', 'About You', 'Constraints'];
+  const stepTitles = ['Account', 'About You', 'Intake Survey'];
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
