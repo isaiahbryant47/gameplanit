@@ -12,10 +12,33 @@ const schema = z.object({
 });
 
 const transportOptions: { value: Transportation; label: string }[] = [
-  { value: 'walk', label: 'Walking' },
-  { value: 'public', label: 'Public transit' },
-  { value: 'car', label: 'Car' },
-  { value: 'mixed', label: 'Mixed' },
+  { value: 'walk', label: '🚶 Walking' },
+  { value: 'public', label: '🚌 Public transit' },
+  { value: 'car', label: '🚗 Car' },
+  { value: 'mixed', label: '🔀 Mixed' },
+];
+
+const hoursOptions = [
+  { value: 2, label: '1–2 hours' },
+  { value: 4, label: '3–4 hours' },
+  { value: 6, label: '5–6 hours' },
+  { value: 8, label: '7+ hours' },
+];
+
+const budgetOptions = [
+  { value: 0, label: 'No budget ($0)' },
+  { value: 20, label: 'Up to $20/mo' },
+  { value: 50, label: 'Up to $50/mo' },
+  { value: 100, label: '$50+/mo' },
+];
+
+const responsibilityOptions = [
+  { value: 'none', label: 'None' },
+  { value: 'sibling_care', label: 'Sibling care' },
+  { value: 'part_time_job', label: 'Part-time job' },
+  { value: 'household_chores', label: 'Household chores' },
+  { value: 'caregiving', label: 'Caregiving for a family member' },
+  { value: 'other', label: 'Other' },
 ];
 
 export default function Onboarding() {
@@ -28,7 +51,7 @@ export default function Onboarding() {
     email: '', password: '', type: 'student' as 'student' | 'caregiver',
     gradeLevel: '9', schoolName: '', zipCode: '', interests: 'technology',
     timePerWeekHours: 4, budgetPerMonth: 20, transportation: 'public' as Transportation,
-    responsibilities: '', goals: 'career exposure', gpa: '', attendance: ''
+    responsibilities: [] as string[], goals: 'career exposure', gpa: '', attendance: ''
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -45,7 +68,7 @@ export default function Onboarding() {
       id: crypto.randomUUID(), userId: current.id, type: f.type, gradeLevel: f.gradeLevel,
       schoolName: f.schoolName || undefined, zipCode: finalZip,
       interests: f.interests.split(',').map(s => s.trim()).filter(Boolean),
-      constraints: { timePerWeekHours: Number(f.timePerWeekHours), budgetPerMonth: Number(f.budgetPerMonth), transportation: f.transportation, responsibilities: f.responsibilities },
+      constraints: { timePerWeekHours: Number(f.timePerWeekHours), budgetPerMonth: Number(f.budgetPerMonth), transportation: f.transportation, responsibilities: f.responsibilities.filter(r => r !== 'none').join(', ') },
       goals: f.goals.split(',').map(s => s.trim()).filter(Boolean),
       baseline: { gpa: f.gpa ? Number(f.gpa) : undefined, attendance: f.attendance ? Number(f.attendance) : undefined }
     };
@@ -121,24 +144,42 @@ export default function Onboarding() {
           )}
           {step === 3 && (
             <>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Hours per week</label>
-                  <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" type="number" value={f.timePerWeekHours} onChange={e => setF({ ...f, timePerWeekHours: Number(e.target.value) })} />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Budget per month ($)</label>
-                  <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" type="number" value={f.budgetPerMonth} onChange={e => setF({ ...f, budgetPerMonth: Number(e.target.value) })} />
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">How many hours per week can you dedicate?</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {hoursOptions.map(o => (
+                    <button
+                      key={o.value}
+                      onClick={() => setF({ ...f, timePerWeekHours: o.value })}
+                      className={`rounded-lg border px-3 py-2.5 text-sm transition-colors ${f.timePerWeekHours === o.value ? 'border-primary bg-accent text-accent-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Transportation</label>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">What's your monthly budget for activities?</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {budgetOptions.map(o => (
+                    <button
+                      key={o.value}
+                      onClick={() => setF({ ...f, budgetPerMonth: o.value })}
+                      className={`rounded-lg border px-3 py-2.5 text-sm transition-colors ${f.budgetPerMonth === o.value ? 'border-primary bg-accent text-accent-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">How will you get around?</label>
                 <div className="grid grid-cols-2 gap-2">
                   {transportOptions.map(t => (
                     <button
                       key={t.value}
                       onClick={() => setF({ ...f, transportation: t.value })}
-                      className={`rounded-lg border px-3 py-2 text-sm transition-colors ${f.transportation === t.value ? 'border-primary bg-accent text-accent-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}
+                      className={`rounded-lg border px-3 py-2.5 text-sm transition-colors ${f.transportation === t.value ? 'border-primary bg-accent text-accent-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}
                     >
                       {t.label}
                     </button>
@@ -146,8 +187,26 @@ export default function Onboarding() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsibilities</label>
-                <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="e.g. Sibling care, part-time job" value={f.responsibilities} onChange={e => setF({ ...f, responsibilities: e.target.value })} />
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">Do you have any responsibilities outside of school? (select all that apply)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {responsibilityOptions.map(o => {
+                    const selected = f.responsibilities.includes(o.value);
+                    return (
+                      <button
+                        key={o.value}
+                        onClick={() => {
+                          const next = selected
+                            ? f.responsibilities.filter(r => r !== o.value)
+                            : [...f.responsibilities.filter(r => o.value === 'none' ? false : r !== 'none'), o.value];
+                          setF({ ...f, responsibilities: next });
+                        }}
+                        className={`rounded-lg border px-3 py-2.5 text-sm transition-colors ${selected ? 'border-primary bg-accent text-accent-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}
+                      >
+                        {o.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </>
           )}
