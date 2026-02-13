@@ -2,7 +2,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
 import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
-import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle, CheckSquare, Square } from 'lucide-react';
+import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle, CheckSquare, Square, Trophy } from 'lucide-react';
 import { useState } from 'react';
 import ResourceDiscovery from '@/components/ResourceDiscovery';
 import PlanCalendarView from '@/components/PlanCalendarView';
@@ -15,7 +15,11 @@ export default function Dashboard() {
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [showProfile, setShowProfile] = useState(false);
-  const [progress, setProgress] = useState(() => user ? storage.getProgress(user.id) : { completedActions: {}, resourcesEngaged: [] as string[], academicLog: [] as { date: string; gpa?: number; attendance?: number }[] });
+  const [progress, setProgress] = useState(() => {
+    const p = user ? storage.getProgress(user.id) : { completedActions: {}, resourcesEngaged: [] as string[], academicLog: [] as { date: string; gpa?: number; attendance?: number }[], completedGoals: {} as Record<string, string> };
+    if (!p.completedGoals) p.completedGoals = {};
+    return p;
+  });
 
   if (!user) return <Navigate to="/login" />;
   const profile = storage.allProfiles().find((p) => p.userId === user.id);
@@ -119,17 +123,31 @@ export default function Dashboard() {
               goalMap.get(goal)!.push(week);
             });
 
-            return Array.from(goalMap.entries()).map(([goal, weeks]) => (
-              <div key={goal} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            return Array.from(goalMap.entries()).map(([goal, weeks]) => {
+              const isGoalCompleted = !!progress.completedGoals[goal];
+              return (
+              <div key={goal} className={`rounded-xl border shadow-sm overflow-hidden ${isGoalCompleted ? 'border-primary/50 bg-primary/5' : 'border-border bg-card'}`}>
                 <button
                   onClick={() => setExpandedWeek(prev => prev === goal ? null : goal)}
                   className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-secondary/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-sm font-bold">{weeks.length}</span>
+                    {isGoalCompleted ? (
+                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm"><Trophy className="w-4 h-4" /></span>
+                    ) : (
+                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-sm font-bold">{weeks.length}</span>
+                    )}
                     <div>
-                      <h2 className="text-sm font-semibold text-card-foreground capitalize">{goal}</h2>
-                      <p className="text-xs text-muted-foreground">{weeks.length} {weeks.length === 1 ? 'week' : 'weeks'} · Weeks {weeks[0].weekNumber}–{weeks[weeks.length - 1].weekNumber}</p>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-sm font-semibold text-card-foreground capitalize">{goal}</h2>
+                        {isGoalCompleted && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-primary bg-primary/10 px-2 py-0.5 rounded-full">✓ Completed</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {weeks.length} {weeks.length === 1 ? 'week' : 'weeks'} · Weeks {weeks[0].weekNumber}–{weeks[weeks.length - 1].weekNumber}
+                        {isGoalCompleted && ` · Completed ${new Date(progress.completedGoals[goal]).toLocaleDateString()}`}
+                      </p>
                     </div>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expandedWeek === goal ? 'rotate-180' : ''}`} />
@@ -207,10 +225,42 @@ export default function Dashboard() {
                       );
                     })}
                   </div>
+                  {/* Goal Completed Button */}
+                  <div className="px-5 py-3 border-t border-border bg-secondary/30 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      {isGoalCompleted ? 'This goal has been marked as complete.' : 'Mark this goal as successfully completed when done.'}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const updated = { ...progress, completedGoals: { ...progress.completedGoals } };
+                        if (isGoalCompleted) {
+                          delete updated.completedGoals[goal];
+                        } else {
+                          updated.completedGoals[goal] = new Date().toISOString();
+                          // Also check all actions
+                          const allKeys = weeks.flatMap(w => w.actions.map((_, i) => `${w.id}-${i}`));
+                          updated.completedActions = { ...updated.completedActions };
+                          allKeys.forEach(k => { updated.completedActions[k] = true; });
+                        }
+                        setProgress(updated);
+                        storage.saveProgress(user.id, updated);
+                      }}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium transition-colors ${
+                        isGoalCompleted
+                          ? 'border border-primary text-primary hover:bg-primary/10'
+                          : 'bg-primary text-primary-foreground hover:opacity-90'
+                      }`}
+                    >
+                      <Trophy className="w-3.5 h-3.5" />
+                      {isGoalCompleted ? 'Undo Completion' : 'Goal Completed 🎉'}
+                    </button>
+                  </div>
                   </div>
                 )}
               </div>
-            ));
+              );
+            });
           })()
         )}
       </div>
