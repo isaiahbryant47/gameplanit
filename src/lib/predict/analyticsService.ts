@@ -73,10 +73,28 @@ export async function submitPrediction(data: PredictionData) {
   return !error;
 }
 
+export interface DomainAnalytics {
+  domain: string;
+  label: string;
+  planCount: number;
+  avgAdherence: number | null;
+}
+
+export interface PathwayAnalytics {
+  pathwayId: string;
+  pathwayTitle: string;
+  domain: string;
+  planCount: number;
+  avgCycle: number;
+  avgAdherence: number | null;
+}
+
 export interface AggregatedAnalytics {
   byGrade: { grade: string; avgAdherence: number; count: number; atRiskCount: number }[];
   byHours: { bucket: string; avgAdherence: number; count: number }[];
   byTransport: { transport: string; avgAdherence: number; count: number }[];
+  byDomain: DomainAnalytics[];
+  byPathway: PathwayAnalytics[];
   overall: { avgAdherence: number; totalUsers: number; atRiskPct: number };
 }
 
@@ -84,13 +102,44 @@ const MIN_BUCKET_SIZE = 5;
 
 export async function fetchAggregatedAnalytics(): Promise<AggregatedAnalytics> {
   // Fetch latest prediction per user_hash
-  const { data: predictions } = await supabase
-    .from('prediction_snapshots')
-    .select('*')
-    .order('created_at', { ascending: false });
+  const [{ data: predictions }, { data: plans }, { data: pathways }] = await Promise.all([
+    supabase.from('prediction_snapshots').select('*').order('created_at', { ascending: false }),
+    supabase.from('plans').select('id, user_id, goal_domain, pathway_id, cycle_number'),
+    supabase.from('pathways').select('id, title, domain'),
+  ]);
+
+  const domainLabels: Record<string, string> = { college: 'College', career: 'Career', health_fitness: 'Health & Fitness' };
+
+  // --- Domain & Pathway analytics from plans ---
+  const domainMap = new Map<string, { count: number }>();
+  const pathwayMap = new Map<string, { title: string; domain: string; count: number; cycleSum: number }>();
+  const pathwayLookup = new Map<string, { title: string; domain: string }>();
+  (pathways || []).forEach(p => pathwayLookup.set(p.id, { title: p.title, domain: p.domain }));
+
+  (plans || []).forEach(p => {
+    const d = p.goal_domain || 'unspecified';
+    const entry = domainMap.get(d) || { count: 0 };
+    entry.count++;
+    domainMap.set(d, entry);
+
+    if (p.pathway_id) {
+      const pw = pathwayMap.get(p.pathway_id) || { title: pathwayLookup.get(p.pathway_id)?.title || 'Unknown', domain: pathwayLookup.get(p.pathway_id)?.domain || d, count: 0, cycleSum: 0 };
+      pw.count++;
+      pw.cycleSum += p.cycle_number || 1;
+      pathwayMap.set(p.pathway_id, pw);
+    }
+  });
+
+  const byDomain: DomainAnalytics[] = Array.from(domainMap.entries())
+    .filter(([, v]) => v.count >= MIN_BUCKET_SIZE)
+    .map(([domain, v]) => ({ domain, label: domainLabels[domain] || domain, planCount: v.count, avgAdherence: null }));
+
+  const byPathway: PathwayAnalytics[] = Array.from(pathwayMap.entries())
+    .filter(([, v]) => v.count >= MIN_BUCKET_SIZE)
+    .map(([pathwayId, v]) => ({ pathwayId, pathwayTitle: v.title, domain: v.domain, planCount: v.count, avgCycle: v.cycleSum / v.count, avgAdherence: null }));
 
   if (!predictions || predictions.length === 0) {
-    return { byGrade: [], byHours: [], byTransport: [], overall: { avgAdherence: 0, totalUsers: 0, atRiskPct: 0 } };
+    return { byGrade: [], byHours: [], byTransport: [], byDomain, byPathway, overall: { avgAdherence: 0, totalUsers: 0, atRiskPct: 0 } };
   }
 
   // Deduplicate: latest per user_hash
@@ -182,6 +231,8 @@ export async function fetchAggregatedAnalytics(): Promise<AggregatedAnalytics> {
     byGrade,
     byHours,
     byTransport,
+    byDomain,
+    byPathway,
     overall: { avgAdherence, totalUsers, atRiskPct: totalUsers > 0 ? (atRiskCount / totalUsers) * 100 : 0 },
   };
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchAggregatedAnalytics, type AggregatedAnalytics } from '@/lib/predict/analyticsService';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
-import { BrainCircuit, Loader2, AlertTriangle, Users } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie } from 'recharts';
+import { BrainCircuit, Loader2, AlertTriangle, Users, Compass, Map } from 'lucide-react';
 
 export default function PartnerAnalytics() {
   const [data, setData] = useState<AggregatedAnalytics | null>(null);
@@ -60,6 +60,92 @@ export default function PartnerAnalytics() {
           <p className="text-2xl font-bold text-destructive">{Math.round(data.overall.atRiskPct)}%</p>
         </div>
       </div>
+
+      {/* By Goal Domain */}
+      {data.byDomain.length > 0 && (
+        <div className="rounded-xl border border-border bg-card shadow-sm p-5">
+          <h3 className="text-sm font-semibold text-card-foreground mb-3 flex items-center gap-1.5">
+            <Compass className="w-4 h-4 text-primary" /> Plans by Goal Domain
+          </h3>
+          <div className="flex gap-6">
+            <ResponsiveContainer width="50%" height={200}>
+              <PieChart>
+                <Pie
+                  data={data.byDomain.map(d => ({ name: d.label, value: d.planCount }))}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  label={({ name, value }) => `${name} (${value})`}
+                >
+                  {data.byDomain.map((_, i) => (
+                    <Cell key={i} fill={['hsl(var(--primary))', 'hsl(var(--accent-foreground))', 'hsl(var(--muted-foreground))'][i % 3]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex-1 flex flex-col justify-center space-y-2">
+              {data.byDomain.map(d => (
+                <div key={d.domain} className="flex items-center justify-between text-sm">
+                  <span className="text-card-foreground font-medium">{d.label}</span>
+                  <span className="text-muted-foreground">{d.planCount} plans</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-2 text-[10px] text-muted-foreground">
+            Domains with &lt;5 plans are hidden for k-anonymity.
+          </div>
+        </div>
+      )}
+
+      {/* By Pathway */}
+      {data.byPathway.length > 0 && (
+        <div className="rounded-xl border border-border bg-card shadow-sm p-5">
+          <h3 className="text-sm font-semibold text-card-foreground mb-3 flex items-center gap-1.5">
+            <Map className="w-4 h-4 text-primary" /> Plans by Pathway
+          </h3>
+          <ResponsiveContainer width="100%" height={Math.max(160, data.byPathway.length * 50)}>
+            <BarChart layout="vertical" data={data.byPathway.map(p => ({ name: p.pathwayTitle, plans: p.planCount, avgCycle: Number(p.avgCycle.toFixed(1)) }))}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+              <YAxis dataKey="name" type="category" width={180} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+              <Tooltip
+                contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }}
+                formatter={(value: number, name: string) => [value, name === 'plans' ? 'Plans' : 'Avg Cycle']}
+              />
+              <Bar dataKey="plans" radius={[0, 4, 4, 0]} fill="hsl(var(--primary))" />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Pathway</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Domain</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Plans</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Avg Cycle</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.byPathway.map(p => (
+                  <tr key={p.pathwayId} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2 text-card-foreground font-medium">{p.pathwayTitle}</td>
+                    <td className="px-3 py-2 text-muted-foreground capitalize">{p.domain.replace('_', ' ')}</td>
+                    <td className="px-3 py-2 text-card-foreground">{p.planCount}</td>
+                    <td className="px-3 py-2 text-card-foreground">{p.avgCycle.toFixed(1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-2 text-[10px] text-muted-foreground">
+            Pathways with &lt;5 plans are hidden for k-anonymity.
+          </div>
+        </div>
+      )}
 
       {/* By Grade */}
       {data.byGrade.length > 0 && (
