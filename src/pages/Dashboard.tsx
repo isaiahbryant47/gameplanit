@@ -135,7 +135,29 @@ export default function Dashboard() {
                   <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expandedWeek === goal ? 'rotate-180' : ''}`} />
                 </button>
                 {expandedWeek === goal && (
-                  <div className="border-t border-border divide-y divide-border">
+                  <div className="border-t border-border">
+                    {/* Check All / Uncheck All */}
+                    {(() => {
+                      const allKeys = weeks.flatMap(w => w.actions.map((_, i) => `${w.id}-${i}`));
+                      const allDone = allKeys.every(k => !!progress.completedActions[k]);
+                      return (
+                        <div className="px-5 py-2.5 flex items-center justify-end border-b border-border bg-secondary/30">
+                          <button
+                            onClick={() => {
+                              const updated = { ...progress, completedActions: { ...progress.completedActions } };
+                              allKeys.forEach(k => { updated.completedActions[k] = !allDone; });
+                              setProgress(updated);
+                              storage.saveProgress(user.id, updated);
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                          >
+                            {allDone ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                            {allDone ? 'Uncheck All' : 'Check All'}
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  <div className="divide-y divide-border">
                     {weeks.map(week => {
                       const theme = week.focus.includes(' - ') ? week.focus.split(' - ')[0] : '';
                       return (
@@ -184,6 +206,7 @@ export default function Dashboard() {
                         </div>
                       );
                     })}
+                  </div>
                   </div>
                 )}
               </div>
