@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { storage } from '@/lib/storage';
 import type { Profile, Transportation } from '@/lib/types';
 import { X, Save, User } from 'lucide-react';
+import GoalBuilder from '@/components/GoalBuilder';
 
 const transportOptions: { value: Transportation; label: string }[] = [
   { value: 'walk', label: '🚶 Walking' },
@@ -191,15 +192,12 @@ export default function StudentProfile({ profile, onClose, onSave }: Props) {
         </div>
 
         {/* Goals */}
-        <div>
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Goals</h3>
-          <input
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            value={f.goals}
-            onChange={e => setF({ ...f, goals: e.target.value })}
-            placeholder="Goals (comma-separated)"
-          />
-        </div>
+        <GoalBuilder
+          interests={f.interests}
+          gradeLevel={f.gradeLevel}
+          initialGoals={f.goals}
+          onGoalsChange={useCallback((goals: string) => setF(prev => ({ ...prev, goals })), [])}
+        />
 
         {/* Constraints */}
         <div>
