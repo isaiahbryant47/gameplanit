@@ -4,6 +4,7 @@ import { storage } from '@/lib/storage';
 import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
 import { RefreshCw, Printer, LogOut, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
+import ResourceDiscovery from '@/components/ResourceDiscovery';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -67,7 +68,11 @@ export default function Dashboard() {
       </div>
 
       {/* Weeks */}
-      <div className="max-w-4xl mx-auto px-6 py-6 space-y-3">
+      <div className="max-w-4xl mx-auto px-6 py-6 space-y-4">
+        {/* AI Resource Discovery */}
+        <ResourceDiscovery profile={profile} />
+
+        {/* Weekly Plan */}
         {plan.weeks.map(week => {
           const isOpen = expandedWeek === week.weekNumber;
           return (
