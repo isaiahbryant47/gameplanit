@@ -1,1 +1,4 @@
 project_id = "iwklotqrqcmmtgeffnxy"
+
+[functions.discover-resources]
+verify_jwt = false
