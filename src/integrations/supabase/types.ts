@@ -14,6 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      plan_weeks: {
+        Row: {
+          actions: Json
+          created_at: string
+          focus: string
+          id: string
+          milestone: string
+          plan_id: string
+          week_number: number
+        }
+        Insert: {
+          actions?: Json
+          created_at?: string
+          focus: string
+          id?: string
+          milestone: string
+          plan_id: string
+          week_number: number
+        }
+        Update: {
+          actions?: Json
+          created_at?: string
+          focus?: string
+          id?: string
+          milestone?: string
+          plan_id?: string
+          week_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_weeks_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plans: {
+        Row: {
+          created_at: string
+          id: string
+          profile_snapshot: Json
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_snapshot?: Json
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_snapshot?: Json
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       prediction_snapshots: {
         Row: {
           adherence_probability: number
