@@ -72,6 +72,11 @@ interface ProfileInput {
     responsibilities: string;
   };
   baseline?: { gpa?: number; attendance?: number };
+  goalDomain?: string;
+  pathwayId?: string;
+  outcomeStatement?: string;
+  targetDate?: string;
+  domainBaseline?: Record<string, string>;
 }
 
 function buildSystemPrompt(profile: ProfileInput): string {
@@ -84,7 +89,19 @@ function buildSystemPrompt(profile: ProfileInput): string {
 
   const responsibilities = profile.constraints.responsibilities || "none reported";
 
+  const domainLabel = profile.goalDomain
+    ? { college: "College Readiness", career: "Career Exploration", health_fitness: "Health & Fitness" }[profile.goalDomain] || profile.goalDomain
+    : null;
+
+  const domainBaselineLines = profile.domainBaseline
+    ? Object.entries(profile.domainBaseline).map(([k, v]) => `- ${k}: ${v}`).join("\n")
+    : "";
+
   return `You are the planning engine inside GameplanIT, a platform that builds personalized 12-week action plans for middle and high school students (grades 7–12).
+
+${domainLabel ? `PATHWAY: ${domainLabel}` : ""}
+${profile.outcomeStatement ? `OUTCOME GOAL: ${profile.outcomeStatement}` : ""}
+${profile.targetDate ? `TARGET TIMEFRAME: ${profile.targetDate}` : ""}
 
 STUDENT PROFILE:
 - Grade: ${profile.gradeLevel}
@@ -97,6 +114,7 @@ STUDENT PROFILE:
 - Outside responsibilities: ${responsibilities}
 ${profile.baseline?.gpa ? `- Current GPA: ${profile.baseline.gpa}` : ""}
 ${profile.baseline?.attendance ? `- Attendance rate: ${profile.baseline.attendance}%` : ""}
+${domainBaselineLines ? `\nDOMAIN-SPECIFIC BASELINE:\n${domainBaselineLines}` : ""}
 
 REQUIREMENTS:
 1. Generate exactly 12 weeks.
@@ -113,8 +131,9 @@ REQUIREMENTS:
 8. Build progressive difficulty — early weeks are lighter.
 9. Account for the student's transportation and time constraints.
 10. Do NOT use generic filler. Every action must be concrete and doable.
-11. Weeks should cycle through the student's goals, ensuring all goals get coverage.
-12. If the student has limited time, keep weekly actions to 3 items max.`;
+11. ${profile.outcomeStatement ? `All weeks must advance toward the student's outcome goal: "${profile.outcomeStatement}".` : "Weeks should cycle through the student's goals, ensuring all goals get coverage."}
+12. If the student has limited time, keep weekly actions to 3 items max.
+${domainLabel ? `13. Each week's focus must map to a sub-goal that builds readiness within the ${domainLabel} pathway.` : ""}`;
 }
 
 // ── Call LLM ──
@@ -224,6 +243,11 @@ async function savePlan(userId: string, title: string, weeks: Week[], profile: P
       user_id: userId,
       title,
       profile_snapshot: profile,
+      pathway_id: profile.pathwayId || null,
+      cycle_number: 1,
+      outcome_statement: profile.outcomeStatement || null,
+      target_date: profile.targetDate || null,
+      goal_domain: profile.goalDomain || null,
     })
     .select("id")
     .single();

@@ -1,5 +1,6 @@
 export type Role = 'student' | 'caregiver' | 'partner_admin';
 export type Transportation = 'walk' | 'public' | 'car' | 'mixed';
+export type GoalDomain = 'college' | 'career' | 'health_fitness';
 
 export interface User {
   id: string;
@@ -25,6 +26,32 @@ export interface Profile {
   };
   goals: string[];
   baseline: { gpa?: number; attendance?: number };
+  // Pathway fields (optional for backward compat)
+  goalDomain?: GoalDomain;
+  pathwayId?: string;
+  outcomeStatement?: string;
+  targetDate?: string;
+  domainBaseline?: Record<string, string>;
+}
+
+export interface Pathway {
+  id: string;
+  domain: GoalDomain;
+  title: string;
+  description: string;
+  default_milestones: string[];
+  tags: string[];
+  is_active: boolean;
+}
+
+export interface Opportunity {
+  id: string;
+  domain: GoalDomain;
+  title: string;
+  description: string;
+  requirements_json: { min_completion_rate?: number; min_cycle?: number };
+  next_step_cta_label: string;
+  next_step_url?: string;
 }
 
 export interface PlanWeek {
@@ -44,4 +71,10 @@ export interface Plan {
   title: string;
   createdAt: string;
   weeks: PlanWeek[];
+  // Pathway fields
+  pathwayId?: string;
+  cycleNumber?: number;
+  outcomeStatement?: string;
+  targetDate?: string;
+  goalDomain?: GoalDomain;
 }

@@ -162,6 +162,11 @@ export default function Recommendations() {
         title: `12-Week Plan: ${profile.goals.join(' & ')}`,
         createdAt: new Date().toISOString(),
         weeks: localWeeks,
+        pathwayId: profile.pathwayId,
+        cycleNumber: 1,
+        outcomeStatement: profile.outcomeStatement,
+        targetDate: profile.targetDate,
+        goalDomain: profile.goalDomain,
       };
       storage.savePlans([...storage.allPlans().filter(p => p.userId !== user.id), plan]);
 

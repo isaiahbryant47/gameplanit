@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
-import { Profile, Transportation } from '@/lib/types';
+import { Profile, Transportation, GoalDomain, Pathway } from '@/lib/types';
 import GoalBuilder from '@/components/GoalBuilder';
+import PathwaySelector from '@/components/PathwaySelector';
+import { createUserPathway } from '@/lib/pathwayService';
 import { lovable } from '@/integrations/lovable/index';
 
 const schema = z.object({
@@ -57,6 +59,13 @@ const interestOptions = [
   { value: 'mental_health', label: '🧠 Mental health & wellness' },
 ];
 
+const targetDateOptions = [
+  { value: '3_months', label: '~3 months' },
+  { value: '6_months', label: '~6 months' },
+  { value: '1_year', label: '~1 year' },
+  { value: 'not_sure', label: 'Not sure yet' },
+];
+
 export default function Onboarding() {
   const { register, user } = useAuth();
   const nav = useNavigate();
@@ -67,7 +76,13 @@ export default function Onboarding() {
     email: '', password: '', type: 'student' as 'student' | 'caregiver',
     gradeLevel: '9', schoolName: '', zipCode: '', interests: [] as string[],
     timePerWeekHours: 4, budgetPerMonth: 20, transportation: 'public' as Transportation,
-    responsibilities: [] as string[], goals: 'career exposure', gpa: '', attendance: ''
+    responsibilities: [] as string[], goals: 'career exposure', gpa: '', attendance: '',
+    // Pathway fields
+    goalDomain: null as GoalDomain | null,
+    selectedPathway: null as Pathway | null,
+    outcomeStatement: '',
+    targetDate: '',
+    domainBaseline: {} as Record<string, string>,
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -80,13 +95,24 @@ export default function Onboarding() {
     if (!current) return setError('Email already exists. Login instead.');
 
     setSubmitting(true);
+
+    // Create user pathway if selected
+    if (f.selectedPathway) {
+      await createUserPathway(current.id, f.selectedPathway.id);
+    }
+
     const profile: Profile = {
       id: crypto.randomUUID(), userId: current.id, type: f.type, gradeLevel: f.gradeLevel,
       schoolName: f.schoolName || undefined, zipCode: finalZip,
       interests: f.interests,
       constraints: { timePerWeekHours: Number(f.timePerWeekHours), budgetPerMonth: Number(f.budgetPerMonth), transportation: f.transportation, responsibilities: f.responsibilities.filter(r => r !== 'none').join(', ') },
       goals: f.goals.split(',').map(s => s.trim()).filter(Boolean),
-      baseline: { gpa: f.gpa ? Number(f.gpa) : undefined, attendance: f.attendance ? Number(f.attendance) : undefined }
+      baseline: { gpa: f.gpa ? Number(f.gpa) : undefined, attendance: f.attendance ? Number(f.attendance) : undefined },
+      goalDomain: f.goalDomain || undefined,
+      pathwayId: f.selectedPathway?.id,
+      outcomeStatement: f.outcomeStatement || undefined,
+      targetDate: f.targetDate || undefined,
+      domainBaseline: Object.keys(f.domainBaseline).length > 0 ? f.domainBaseline : undefined,
     };
 
     storage.saveProfiles([...storage.allProfiles().filter(p => p.userId !== current.id), profile]);
@@ -98,7 +124,13 @@ export default function Onboarding() {
     setF(prev => ({ ...prev, goals }));
   }, []);
 
+  const handlePathwaySelect = useCallback((domain: GoalDomain, pathway: Pathway) => {
+    setF(prev => ({ ...prev, goalDomain: domain, selectedPathway: pathway }));
+  }, []);
+
   const stepTitles = ['Get Started', 'Your World', 'Where You\'re Headed', 'Your Real Life'];
+
+  const canProceedStep3 = f.goals.trim() && f.goalDomain && f.selectedPathway;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -127,7 +159,7 @@ export default function Onboarding() {
         <p className="text-sm text-muted-foreground -mt-2">
           {step === 1 && 'Set up your login so we can save your plan and keep it just for you.'}
           {step === 2 && 'Tell us a little about where you are right now — it helps us find the right opportunities near you.'}
-          {step === 3 && 'What do you want to explore or accomplish? Even a rough idea helps us build something real.'}
+          {step === 3 && 'Pick a direction, then get specific. The more precise your goal, the better your plan.'}
           {step === 4 && 'We all juggle different things. Sharing what your schedule and resources look like helps us make a plan that actually fits.'}
         </p>
 
@@ -200,12 +232,102 @@ export default function Onboarding() {
                   })}
                 </div>
               </div>
-              <GoalBuilder
-                interests={f.interests}
-                gradeLevel={f.gradeLevel}
-                initialGoals={f.goals}
-                onGoalsChange={handleGoalsChange}
+            </>
+          )}
+          {step === 3 && (
+            <>
+              {/* Pathway Selector */}
+              <PathwaySelector
+                onSelect={handlePathwaySelect}
+                selectedPathwayId={f.selectedPathway?.id}
+                selectedDomain={f.goalDomain || undefined}
               />
+
+              {/* Outcome Statement */}
+              {f.selectedPathway && (
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                      What specific outcome are you aiming for?
+                    </label>
+                    <p className="text-[11px] text-muted-foreground/70 mb-2">The more specific you are, the more precise your plan becomes.</p>
+                    <textarea
+                      className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                      rows={2}
+                      placeholder={
+                        f.goalDomain === 'career' ? 'e.g., "Land a paid STEM internship by next summer"' :
+                        f.goalDomain === 'college' ? 'e.g., "Submit 3 college applications with strong essays by December"' :
+                        'e.g., "Work out 4 days/week and meal prep consistently for 12 weeks"'
+                      }
+                      value={f.outcomeStatement}
+                      onChange={e => setF({ ...f, outcomeStatement: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-2 block">When do you want to reach this?</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {targetDateOptions.map(o => (
+                        <button
+                          key={o.value}
+                          onClick={() => setF({ ...f, targetDate: o.value })}
+                          className={`rounded-lg border px-3 py-2.5 text-sm transition-colors ${f.targetDate === o.value ? 'border-primary bg-accent text-accent-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Domain-specific baseline (optional) */}
+                  {f.goalDomain === 'college' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Current GPA (optional)</label>
+                        <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="e.g., 3.2" value={f.domainBaseline.gpa || ''} onChange={e => setF({ ...f, domainBaseline: { ...f.domainBaseline, gpa: e.target.value } })} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Test prep status</label>
+                        <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="e.g., Not started" value={f.domainBaseline.testPrep || ''} onChange={e => setF({ ...f, domainBaseline: { ...f.domainBaseline, testPrep: e.target.value } })} />
+                      </div>
+                    </div>
+                  )}
+                  {f.goalDomain === 'career' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Interest area</label>
+                        <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="e.g., Software engineering" value={f.domainBaseline.interestArea || ''} onChange={e => setF({ ...f, domainBaseline: { ...f.domainBaseline, interestArea: e.target.value } })} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Experience level</label>
+                        <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="e.g., Beginner" value={f.domainBaseline.experienceLevel || ''} onChange={e => setF({ ...f, domainBaseline: { ...f.domainBaseline, experienceLevel: e.target.value } })} />
+                      </div>
+                    </div>
+                  )}
+                  {f.goalDomain === 'health_fitness' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Training days/week</label>
+                        <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="e.g., 2" value={f.domainBaseline.trainingDays || ''} onChange={e => setF({ ...f, domainBaseline: { ...f.domainBaseline, trainingDays: e.target.value } })} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Current weight (optional)</label>
+                        <input className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="e.g., 150 lbs" value={f.domainBaseline.weight || ''} onChange={e => setF({ ...f, domainBaseline: { ...f.domainBaseline, weight: e.target.value } })} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Goal Builder (still available for free-text goals) */}
+              <div className="pt-2 border-t border-border">
+                <GoalBuilder
+                  interests={f.interests}
+                  gradeLevel={f.gradeLevel}
+                  initialGoals={f.goals}
+                  onGoalsChange={handleGoalsChange}
+                />
+              </div>
             </>
           )}
           {step === 4 && (
@@ -289,7 +411,7 @@ export default function Onboarding() {
           {step < 4 ? (
             <button
               className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
-              disabled={step === 3 && !f.goals.trim()}
+              disabled={step === 3 && !canProceedStep3}
               onClick={() => { setError(''); setStep(step + 1); }}
             >
               Next
