@@ -5,10 +5,11 @@ import { storage } from '@/lib/storage';
 import { fetchMatchingResources, type Resource } from '@/lib/resourceService';
 import { generatePlanWeeks } from '@/lib/planGenerator';
 import type { Plan } from '@/lib/types';
-import { DollarSign, Clock, Star, Check, Loader2 } from 'lucide-react';
+import { DollarSign, Clock, Star, Check, Loader2, MapPin } from 'lucide-react';
 
 type Category = 'free' | 'low_cost' | 'paid';
 type TimeCategory = 'quick' | 'moderate' | 'intensive';
+type DistCategory = 'virtual' | 'nearby' | 'farther';
 
 function costCategory(r: Resource): Category {
   if (r.is_free || r.cost_dollars === 0) return 'free';
@@ -35,6 +36,12 @@ const timeLabels: Record<TimeCategory, { label: string; icon: typeof Clock; desc
   intensive: { label: 'Deep Dive', icon: Clock, desc: 'Career & mentorship programs' },
 };
 
+const distLabels: Record<DistCategory, { label: string; desc: string }> = {
+  virtual: { label: '🌐 Online / Virtual', desc: 'Access from anywhere' },
+  nearby: { label: '📍 Your Neighborhood', desc: 'Matches your ZIP area' },
+  farther: { label: '🗺️ Other Areas', desc: 'May require travel' },
+};
+
 const MIN_SELECTIONS = 3;
 const MAX_SELECTIONS = 12;
 
@@ -44,7 +51,7 @@ export default function Recommendations() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [groupBy, setGroupBy] = useState<'cost' | 'time' | 'match'>('match');
+  const [groupBy, setGroupBy] = useState<'cost' | 'time' | 'match' | 'distance'>('match');
   const [generating, setGenerating] = useState(false);
 
   const profile = user ? storage.allProfiles().find(p => p.userId === user.id) : null;
@@ -103,6 +110,27 @@ export default function Recommendations() {
           items,
         }));
     }
+    if (groupBy === 'distance') {
+      const zip = profile?.zipCode || '';
+      const groups: Record<DistCategory, Resource[]> = { virtual: [], nearby: [], farther: [] };
+      resources.forEach(r => {
+        if (r.transportation === 'virtual') {
+          groups.virtual.push(r);
+        } else if (r.zip_prefixes.length === 0 || r.zip_prefixes.some(zp => zip.startsWith(zp))) {
+          groups.nearby.push(r);
+        } else {
+          groups.farther.push(r);
+        }
+      });
+      return Object.entries(groups)
+        .filter(([, items]) => items.length > 0)
+        .map(([key, items]) => ({
+          key,
+          label: distLabels[key as DistCategory].label,
+          desc: distLabels[key as DistCategory].desc,
+          items,
+        }));
+    }
     // match: top match as single group
     return [{ key: 'match', label: 'Best Matches For You', desc: 'Ranked by relevance to your profile', items: resources }];
   };
@@ -136,8 +164,8 @@ export default function Recommendations() {
           <p className="text-sm text-muted-foreground mt-1">
             Select {MIN_SELECTIONS}–{MAX_SELECTIONS} resources to build your personalized game plan.
           </p>
-          <div className="flex items-center gap-3 mt-4">
-            {(['match', 'cost', 'time'] as const).map(g => (
+          <div className="flex items-center gap-3 mt-4 flex-wrap">
+            {(['match', 'cost', 'time', 'distance'] as const).map(g => (
               <button
                 key={g}
                 onClick={() => setGroupBy(g)}
@@ -148,7 +176,8 @@ export default function Recommendations() {
                 {g === 'match' && <Star className="w-3.5 h-3.5" />}
                 {g === 'cost' && <DollarSign className="w-3.5 h-3.5" />}
                 {g === 'time' && <Clock className="w-3.5 h-3.5" />}
-                {g === 'match' ? 'Best Match' : g === 'cost' ? 'By Cost' : 'By Time'}
+                {g === 'distance' && <MapPin className="w-3.5 h-3.5" />}
+                {g === 'match' ? 'Best Match' : g === 'cost' ? 'By Cost' : g === 'time' ? 'By Time' : 'By Distance'}
               </button>
             ))}
           </div>
