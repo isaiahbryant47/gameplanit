@@ -216,7 +216,50 @@ export default function Dashboard() {
               </p>
             </div>
             <button
-              onClick={() => toast.info('Cycle 2 generation coming soon!')}
+              onClick={async () => {
+                try {
+                  toast.info(`Generating Cycle ${cycleNumber + 1} with AI...`);
+                  // Build summary of completed cycle
+                  const completedGoals = Object.keys(progress.completedGoals);
+                  const summary = `Cycle ${cycleNumber} completed with ${Math.round(completionRate * 100)}% adherence. Goals completed: ${completedGoals.length > 0 ? completedGoals.join(', ') : 'general progress'}. Milestones reached: ${plan.weeks.filter((_, wi) => plan.weeks[wi].actions.every((_, ai) => progress.completedActions[`${plan.weeks[wi].id}-${ai}`])).map(w => w.milestones[0]).filter(Boolean).join('; ') || 'various'}.`;
+                  
+                  const result = await generateLLMPlan(profile, user.id, {
+                    cycleNumber: cycleNumber + 1,
+                    previousCycleSummary: summary,
+                  });
+                  const localWeeks = result.weeks.map((w) => ({
+                    id: crypto.randomUUID(),
+                    planId: result.planId,
+                    weekNumber: w.week,
+                    focus: w.focus,
+                    actions: w.actions.map(a => a.task),
+                    resources: w.actions.map(a => `${a.resource} — ${a.access}`),
+                    milestones: [w.milestone],
+                  }));
+                  const newPlan = {
+                    id: result.planId,
+                    userId: user.id,
+                    profileId: profile.id,
+                    title: `${plan.title.replace(/Cycle \d+/, '').trim()} — Cycle ${cycleNumber + 1}`,
+                    createdAt: new Date().toISOString(),
+                    weeks: localWeeks,
+                    pathwayId: profile.pathwayId,
+                    cycleNumber: cycleNumber + 1,
+                    outcomeStatement: profile.outcomeStatement,
+                    targetDate: profile.targetDate,
+                    goalDomain: profile.goalDomain,
+                  };
+                  storage.savePlans([...storage.allPlans().filter((p) => p.userId !== user.id), newPlan]);
+                  localStorage.setItem(`gp_structured_weeks_${user.id}`, JSON.stringify(result.weeks));
+                  // Reset progress for new cycle
+                  storage.saveProgress(user.id, { completedActions: {}, resourcesEngaged: progress.resourcesEngaged, academicLog: progress.academicLog, completedGoals: {} });
+                  toast.success(`Cycle ${cycleNumber + 1} is ready!`);
+                  nav(0);
+                } catch (err) {
+                  console.error('Cycle generation failed:', err);
+                  toast.error('Failed to generate next cycle. Please try again.');
+                }
+              }}
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
             >
               Start Cycle {cycleNumber + 1} <ArrowRight className="w-4 h-4" />

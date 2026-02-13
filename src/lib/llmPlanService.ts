@@ -23,7 +23,8 @@ export interface GeneratedPlan {
 
 export async function generateLLMPlan(
   profile: Profile,
-  userId: string
+  userId: string,
+  options?: { cycleNumber?: number; previousCycleSummary?: string }
 ): Promise<GeneratedPlan> {
   const { data, error } = await supabase.functions.invoke("generate-plan", {
     body: {
@@ -35,12 +36,13 @@ export async function generateLLMPlan(
         zipCode: profile.zipCode,
         constraints: profile.constraints,
         baseline: profile.baseline,
-        // Pathway fields
         goalDomain: profile.goalDomain,
         pathwayId: profile.pathwayId,
         outcomeStatement: profile.outcomeStatement,
         targetDate: profile.targetDate,
         domainBaseline: profile.domainBaseline,
+        cycleNumber: options?.cycleNumber,
+        previousCycleSummary: options?.previousCycleSummary,
       },
     },
   });
