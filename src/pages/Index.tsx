@@ -4,6 +4,10 @@ import { BookOpen, Shield, Users } from 'lucide-react';
 export default function Index() {
   return (
     <div className="min-h-screen bg-background">
+      {/* Page Label */}
+      <div className="absolute top-4 left-4 z-10">
+        <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">Home</span>
+      </div>
       {/* Hero */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/30 to-background" />

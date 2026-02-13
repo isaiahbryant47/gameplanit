@@ -48,6 +48,10 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Page Label */}
+      <div className="absolute top-4 left-4 z-10">
+        <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">Student Dashboard</span>
+      </div>
       {/* Header */}
       <div className="border-b border-border bg-card">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">

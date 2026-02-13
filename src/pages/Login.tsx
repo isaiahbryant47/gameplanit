@@ -22,6 +22,9 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="absolute top-4 left-4">
+        <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">Login</span>
+      </div>
       <div className="w-full max-w-md rounded-xl bg-card border border-border p-8 shadow-sm space-y-5">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-card-foreground">Welcome back</h1>
