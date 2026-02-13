@@ -2,16 +2,18 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
 import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
-import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays } from 'lucide-react';
+import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle } from 'lucide-react';
 import { useState } from 'react';
 import ResourceDiscovery from '@/components/ResourceDiscovery';
 import PlanCalendarView from '@/components/PlanCalendarView';
+import StudentProfile from '@/components/StudentProfile';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'calendar'>('list');
+  const [showProfile, setShowProfile] = useState(false);
 
   if (!user) return <Navigate to="/login" />;
   const profile = storage.allProfiles().find((p) => p.userId === user.id);
@@ -74,6 +76,9 @@ export default function Dashboard() {
             <button onClick={exportPdf} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity">
               <Printer className="w-4 h-4" /> Export PDF
             </button>
+            <button onClick={() => setShowProfile(!showProfile)} className={`inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors ${showProfile ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'}`}>
+              <UserCircle className="w-4 h-4" />
+            </button>
             <button onClick={() => { logout(); nav('/'); }} className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors">
               <LogOut className="w-4 h-4" />
             </button>
@@ -83,6 +88,15 @@ export default function Dashboard() {
 
       {/* Weeks */}
       <div className="max-w-4xl mx-auto px-6 py-6 space-y-4">
+        {/* Student Profile */}
+        {showProfile && (
+          <StudentProfile
+            profile={profile}
+            onClose={() => setShowProfile(false)}
+            onSave={() => nav(0)}
+          />
+        )}
+
         {/* AI Resource Discovery */}
         <ResourceDiscovery profile={profile} />
 
