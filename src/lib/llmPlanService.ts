@@ -4,9 +4,14 @@ import type { Profile } from "./types";
 export interface StructuredAction {
   task: string;
   resource: string;
-  access: string;
-  how_to_use: string;
-  time_estimate: string;
+  access_steps: string[];
+  use_steps: string[];
+  time_estimate_minutes: number;
+  success_metric: string;
+  // Legacy compat
+  access?: string;
+  how_to_use?: string;
+  time_estimate?: string;
 }
 
 export interface StructuredWeek {
@@ -21,10 +26,22 @@ export interface GeneratedPlan {
   weeks: StructuredWeek[];
 }
 
+/** Normalize an action from DB (could be old or new format) */
+function normalizeAction(a: Record<string, unknown>): StructuredAction {
+  return {
+    task: String(a.task || ""),
+    resource: String(a.resource || ""),
+    access_steps: Array.isArray(a.access_steps) ? a.access_steps.map(String) : (typeof a.access === "string" ? [a.access] : []),
+    use_steps: Array.isArray(a.use_steps) ? a.use_steps.map(String) : (typeof a.how_to_use === "string" ? [a.how_to_use] : []),
+    time_estimate_minutes: typeof a.time_estimate_minutes === "number" ? a.time_estimate_minutes : (typeof a.time_estimate === "string" ? parseInt(a.time_estimate, 10) || 30 : 30),
+    success_metric: typeof a.success_metric === "string" ? a.success_metric : "Complete the task as described",
+  };
+}
+
 export async function generateLLMPlan(
   profile: Profile,
   userId: string,
-  options?: { cycleNumber?: number; previousCycleSummary?: string }
+  options?: { cycleNumber?: number; previousCycleSummary?: string; stage?: string }
 ): Promise<GeneratedPlan> {
   const { data, error } = await supabase.functions.invoke("generate-plan", {
     body: {
@@ -43,6 +60,7 @@ export async function generateLLMPlan(
         domainBaseline: profile.domainBaseline,
         cycleNumber: options?.cycleNumber,
         previousCycleSummary: options?.previousCycleSummary,
+        stage: options?.stage || "foundation",
       },
     },
   });
@@ -55,7 +73,16 @@ export async function generateLLMPlan(
     throw new Error(data.error);
   }
 
-  return data as GeneratedPlan;
+  // Normalize actions in response
+  const result = data as GeneratedPlan;
+  if (result.weeks) {
+    result.weeks = result.weeks.map(w => ({
+      ...w,
+      actions: w.actions.map(a => normalizeAction(a as unknown as Record<string, unknown>)),
+    }));
+  }
+
+  return result;
 }
 
 export async function fetchPlanFromDB(planId: string): Promise<StructuredWeek[]> {
@@ -70,12 +97,12 @@ export async function fetchPlanFromDB(planId: string): Promise<StructuredWeek[]>
   return data.map((row) => ({
     week: row.week_number,
     focus: row.focus,
-    actions: (row.actions as unknown as StructuredAction[]) || [],
+    actions: ((row.actions as unknown as Record<string, unknown>[]) || []).map(normalizeAction),
     milestone: row.milestone,
   }));
 }
 
-export async function fetchUserPlan(userId: string): Promise<{ planId: string; title: string; createdAt: string; weeks: StructuredWeek[] } | null> {
+export async function fetchUserPlan(userId: string): Promise<{ planId: string; title: string; createdAt: string; stage: string; weeks: StructuredWeek[] } | null> {
   const { data: plans, error } = await supabase
     .from("plans")
     .select("*")
@@ -92,6 +119,7 @@ export async function fetchUserPlan(userId: string): Promise<{ planId: string; t
     planId: plan.id,
     title: plan.title,
     createdAt: plan.created_at,
+    stage: (plan as Record<string, unknown>).stage as string || "foundation",
     weeks,
   };
 }

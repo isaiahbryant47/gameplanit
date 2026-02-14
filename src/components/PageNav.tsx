@@ -5,10 +5,8 @@ const pages = [
   { path: '/', label: 'Home' },
   { path: '/login', label: 'Login' },
   { path: '/onboarding', label: 'Onboarding' },
-  { path: '/recommendations', label: 'Recommendations' },
   { path: '/dashboard', label: 'Dashboard' },
   { path: '/partner', label: 'Partner' },
-  { path: '/partner/resources', label: 'Resources' },
 ];
 
 export default function PageNav() {

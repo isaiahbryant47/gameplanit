@@ -169,6 +169,7 @@ export type Database = {
           outcome_statement: string | null
           pathway_id: string | null
           profile_snapshot: Json
+          stage: string
           target_date: string | null
           title: string
           user_id: string
@@ -181,6 +182,7 @@ export type Database = {
           outcome_statement?: string | null
           pathway_id?: string | null
           profile_snapshot?: Json
+          stage?: string
           target_date?: string | null
           title: string
           user_id: string
@@ -193,6 +195,7 @@ export type Database = {
           outcome_statement?: string | null
           pathway_id?: string | null
           profile_snapshot?: Json
+          stage?: string
           target_date?: string | null
           title?: string
           user_id?: string
@@ -374,6 +377,7 @@ export type Database = {
       user_pathways: {
         Row: {
           created_at: string
+          current_cycle_number: number
           id: string
           pathway_id: string
           status: string
@@ -381,6 +385,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          current_cycle_number?: number
           id?: string
           pathway_id: string
           status?: string
@@ -388,6 +393,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          current_cycle_number?: number
           id?: string
           pathway_id?: string
           status?: string
