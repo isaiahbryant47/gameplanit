@@ -13,11 +13,20 @@ const weekActionSchema = {
   properties: {
     task: { type: "string" as const, description: "A specific, actionable task the student should complete" },
     resource: { type: "string" as const, description: "Name of the resource to use" },
-    access: { type: "string" as const, description: "Step-by-step instructions to access the resource" },
-    how_to_use: { type: "string" as const, description: "Exactly how the student should use this resource this week" },
-    time_estimate: { type: "string" as const, description: "Estimated time (e.g. '30 minutes')" },
+    access_steps: {
+      type: "array" as const,
+      items: { type: "string" as const },
+      description: "Step-by-step instructions to access the resource",
+    },
+    use_steps: {
+      type: "array" as const,
+      items: { type: "string" as const },
+      description: "Exactly how the student should use this resource this week, as ordered steps",
+    },
+    time_estimate_minutes: { type: "number" as const, description: "Estimated time in minutes (e.g. 30)" },
+    success_metric: { type: "string" as const, description: "A measurable indicator that this action was completed successfully" },
   },
-  required: ["task", "resource", "access", "how_to_use", "time_estimate"],
+  required: ["task", "resource", "access_steps", "use_steps", "time_estimate_minutes", "success_metric"],
   additionalProperties: false,
 };
 
@@ -79,6 +88,7 @@ interface ProfileInput {
   domainBaseline?: Record<string, string>;
   cycleNumber?: number;
   previousCycleSummary?: string;
+  stage?: string;
 }
 
 function buildSystemPrompt(profile: ProfileInput): string {
@@ -95,6 +105,10 @@ function buildSystemPrompt(profile: ProfileInput): string {
     ? { college: "College Readiness", career: "Career Exploration", health_fitness: "Health & Fitness" }[profile.goalDomain] || profile.goalDomain
     : null;
 
+  const stageLabel = profile.stage
+    ? { foundation: "Foundation (build basics)", proof: "Proof (demonstrate ability)", leverage: "Leverage (advance toward outcome)" }[profile.stage] || profile.stage
+    : "Foundation (build basics)";
+
   const domainBaselineLines = profile.domainBaseline
     ? Object.entries(profile.domainBaseline).map(([k, v]) => `- ${k}: ${v}`).join("\n")
     : "";
@@ -102,6 +116,7 @@ function buildSystemPrompt(profile: ProfileInput): string {
   return `You are the planning engine inside GameplanIT, a platform that builds personalized 12-week action plans for middle and high school students (grades 7–12).
 
 ${domainLabel ? `PATHWAY: ${domainLabel}` : ""}
+STAGE: ${stageLabel}
 ${profile.outcomeStatement ? `OUTCOME GOAL: ${profile.outcomeStatement}` : ""}
 ${profile.targetDate ? `TARGET TIMEFRAME: ${profile.targetDate}` : ""}
 
@@ -124,9 +139,10 @@ REQUIREMENTS:
 3. Every action must include a SPECIFIC, REAL resource (website, app, program, or local service).
 4. For each resource, provide:
    - The resource name
-   - STEP-BY-STEP instructions on how to access it (e.g. "Go to khanacademy.org → click Courses → search Algebra 1")
-   - EXACTLY how to use it THIS week (specific tasks within the resource)
-   - A realistic time estimate
+   - access_steps: an ARRAY of step-by-step strings on how to access it (e.g. ["Go to khanacademy.org", "Click Courses", "Search Algebra 1"])
+   - use_steps: an ARRAY of step-by-step strings on how to use it THIS week (specific tasks within the resource)
+   - time_estimate_minutes: a NUMBER of minutes (e.g. 30)
+   - success_metric: a measurable indicator the student completed the action (e.g. "Completed 3 practice problems with 80%+ accuracy")
 5. Every week must have a measurable milestone (not vague).
 6. Prioritize free or low-cost resources.
 7. Keep all language at a grade 7–10 reading level.
@@ -135,7 +151,8 @@ REQUIREMENTS:
 10. Do NOT use generic filler. Every action must be concrete and doable.
 11. ${profile.outcomeStatement ? `All weeks must advance toward the student's outcome goal: "${profile.outcomeStatement}".` : "Weeks should cycle through the student's goals, ensuring all goals get coverage."}
 12. If the student has limited time, keep weekly actions to 3 items max.
-${domainLabel ? `13. Each week's focus must map to a sub-goal that builds readiness within the ${domainLabel} pathway.` : ""}
+13. Do NOT invent hyper-local organizations. Keep resources general (national websites, apps, well-known programs) unless the student's ZIP area has verified local data.
+${domainLabel ? `14. Each week's focus must map to a sub-goal that builds readiness within the ${domainLabel} pathway at the ${stageLabel} stage.` : ""}
 ${(profile.cycleNumber || 1) > 1 ? `
 CYCLE CONTEXT:
 This is Cycle ${profile.cycleNumber} of the student's pathway. Build on what was accomplished in previous cycles — increase difficulty, introduce new resources, and push toward more advanced milestones.
@@ -162,7 +179,7 @@ async function callLLM(profile: ProfileInput): Promise<unknown> {
         { role: "system", content: systemPrompt },
         {
           role: "user",
-          content: `Create a personalized 12-week plan for this student. Make every action specific and every resource real and accessible. Use the create_plan tool.`,
+          content: `Create a personalized 12-week plan for this student. Make every action specific and every resource real and accessible. Each action must include access_steps (array of strings), use_steps (array of strings), time_estimate_minutes (number), and success_metric (string). Use the create_plan tool.`,
         },
       ],
       tools: [planToolSchema],
@@ -188,13 +205,14 @@ async function callLLM(profile: ProfileInput): Promise<unknown> {
   return JSON.parse(toolCall.function.arguments);
 }
 
-// ── Validate structure (lightweight, no zod in Deno) ──
+// ── Validate structure ──
 interface WeekAction {
   task: string;
   resource: string;
-  access: string;
-  how_to_use: string;
-  time_estimate: string;
+  access_steps: string[];
+  use_steps: string[];
+  time_estimate_minutes: number;
+  success_metric: string;
 }
 
 interface Week {
@@ -217,15 +235,46 @@ function validatePlan(raw: unknown): Week[] {
     if (!Array.isArray(week.actions) || week.actions.length < 3) throw new Error(`INVALID_PLAN: Week ${i + 1} needs 3+ actions`);
 
     const actions = (week.actions as Record<string, unknown>[]).map((a, j) => {
-      if (!a.task || !a.resource || !a.access || !a.how_to_use || !a.time_estimate) {
-        throw new Error(`INVALID_PLAN: Week ${i + 1}, action ${j + 1} missing fields`);
+      if (!a.task || !a.resource) {
+        throw new Error(`INVALID_PLAN: Week ${i + 1}, action ${j + 1} missing task or resource`);
       }
+      // Normalize access_steps: accept string or string[]
+      let accessSteps: string[] = [];
+      if (Array.isArray(a.access_steps)) {
+        accessSteps = a.access_steps.map(String);
+      } else if (typeof a.access_steps === "string") {
+        accessSteps = [a.access_steps];
+      } else if (typeof a.access === "string") {
+        // backward compat: old format had "access" as string
+        accessSteps = [a.access as string];
+      }
+
+      let useSteps: string[] = [];
+      if (Array.isArray(a.use_steps)) {
+        useSteps = a.use_steps.map(String);
+      } else if (typeof a.use_steps === "string") {
+        useSteps = [a.use_steps];
+      } else if (typeof a.how_to_use === "string") {
+        useSteps = [a.how_to_use as string];
+      }
+
+      const timeMinutes = typeof a.time_estimate_minutes === "number"
+        ? a.time_estimate_minutes
+        : typeof a.time_estimate === "string"
+          ? parseInt(a.time_estimate as string, 10) || 30
+          : 30;
+
+      const successMetric = typeof a.success_metric === "string"
+        ? a.success_metric
+        : "Complete the task as described";
+
       return {
         task: String(a.task),
         resource: String(a.resource),
-        access: String(a.access),
-        how_to_use: String(a.how_to_use),
-        time_estimate: String(a.time_estimate),
+        access_steps: accessSteps.length > 0 ? accessSteps : ["Visit the resource website"],
+        use_steps: useSteps.length > 0 ? useSteps : ["Follow the instructions provided"],
+        time_estimate_minutes: timeMinutes,
+        success_metric: successMetric,
       };
     });
 
@@ -255,6 +304,7 @@ async function savePlan(userId: string, title: string, weeks: Week[], profile: P
       outcome_statement: profile.outcomeStatement || null,
       target_date: profile.targetDate || null,
       goal_domain: profile.goalDomain || null,
+      stage: profile.stage || "foundation",
     })
     .select("id")
     .single();

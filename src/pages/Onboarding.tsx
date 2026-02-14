@@ -5,10 +5,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { storage } from '@/lib/storage';
 import { Profile, Transportation, GoalDomain, Pathway } from '@/lib/types';
+import { generateLLMPlan } from '@/lib/llmPlanService';
+import type { Plan } from '@/lib/types';
 import GoalBuilder from '@/components/GoalBuilder';
 import PathwaySelector from '@/components/PathwaySelector';
 import { createUserPathway } from '@/lib/pathwayService';
 import { lovable } from '@/integrations/lovable/index';
+import { toast } from 'sonner';
+import { Sparkles, Loader2 } from 'lucide-react';
 
 const schema = z.object({
   email: z.string().email(),
@@ -168,8 +172,42 @@ export default function Onboarding() {
     };
     storage.saveProfiles([...storage.allProfiles().filter(p => p.userId !== currentUserId), profile]);
 
+    // Generate plan directly (skip resource selection page)
+    toast.info('Building your personalized plan with AI...');
+    try {
+      const result = await generateLLMPlan(profile, currentUserId);
+      const localWeeks = result.weeks.map((w) => ({
+        id: crypto.randomUUID(),
+        planId: result.planId,
+        weekNumber: w.week,
+        focus: w.focus,
+        actions: w.actions.map(a => a.task),
+        resources: w.actions.map(a => a.resource),
+        milestones: [w.milestone],
+      }));
+      const planObj: Plan = {
+        id: result.planId,
+        userId: currentUserId,
+        profileId: profile.id,
+        title: `12-Week Plan: ${profile.goals.join(' & ')}`,
+        createdAt: new Date().toISOString(),
+        weeks: localWeeks,
+        pathwayId: profile.pathwayId,
+        cycleNumber: 1,
+        outcomeStatement: profile.outcomeStatement,
+        targetDate: profile.targetDate,
+        goalDomain: profile.goalDomain,
+      };
+      storage.savePlans([...storage.allPlans().filter(p => p.userId !== currentUserId), planObj]);
+      localStorage.setItem(`gp_structured_weeks_${currentUserId}`, JSON.stringify(result.weeks));
+      toast.success('Your personalized plan is ready!');
+    } catch (err) {
+      console.error('Plan generation failed:', err);
+      toast.error('Plan generation had an issue — you can regenerate from your dashboard.');
+    }
+
     setSubmitting(false);
-    nav('/recommendations');
+    nav('/dashboard');
   };
 
   const handleGoalsChange = useCallback((goals: string) => {
@@ -469,8 +507,8 @@ export default function Onboarding() {
               Next
             </button>
           ) : (
-            <button disabled={submitting} className="rounded-lg bg-success px-5 py-2.5 text-sm font-medium text-success-foreground hover:opacity-90 transition-opacity disabled:opacity-50" onClick={submit}>
-              {submitting ? 'Generating...' : 'Generate My Plan'}
+            <button disabled={submitting} className="rounded-lg bg-success px-5 py-2.5 text-sm font-medium text-success-foreground hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center gap-2" onClick={submit}>
+              {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating Your Plan...</> : <><Sparkles className="w-4 h-4" /> Generate My Plan</>}
             </button>
           )}
         </div>

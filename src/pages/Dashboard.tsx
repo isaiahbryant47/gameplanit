@@ -150,13 +150,16 @@ export default function Dashboard() {
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   {domainInfo && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                      {domainInfo.emoji} {domainInfo.label}
-                    </span>
-                  )}
-                  <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                    Cycle {cycleNumber}
-                  </span>
+                     <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                       {domainInfo.emoji} {domainInfo.label}
+                     </span>
+                   )}
+                   <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                     Cycle {cycleNumber}
+                   </span>
+                   <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground capitalize">
+                     {(plan as any).stage || 'Foundation'}
+                   </span>
                 </div>
                 {profile.outcomeStatement && (
                   <p className="text-sm font-medium text-card-foreground mt-1">{profile.outcomeStatement}</p>
@@ -372,11 +375,40 @@ export default function Dashboard() {
                                           <BookOpen className="w-3 h-3 text-primary shrink-0" />
                                           <span className="text-xs font-semibold text-foreground">{a.resource}</span>
                                         </div>
-                                        <p className="text-xs text-muted-foreground"><span className="font-medium">Access:</span> {a.access}</p>
-                                        <p className="text-xs text-muted-foreground"><span className="font-medium">How to use:</span> {a.how_to_use}</p>
-                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                          <Clock className="w-3 h-3" />
-                                          <span>{a.time_estimate}</span>
+                                        {a.access_steps && a.access_steps.length > 0 ? (
+                                          <div>
+                                            <span className="text-xs font-medium text-muted-foreground">How to access:</span>
+                                            <ol className="list-decimal list-inside ml-1 mt-0.5 space-y-0.5">
+                                              {a.access_steps.map((s: string, si: number) => (
+                                                <li key={si} className="text-xs text-muted-foreground">{s}</li>
+                                              ))}
+                                            </ol>
+                                          </div>
+                                        ) : a.access ? (
+                                          <p className="text-xs text-muted-foreground"><span className="font-medium">Access:</span> {a.access}</p>
+                                        ) : null}
+                                        {a.use_steps && a.use_steps.length > 0 ? (
+                                          <div>
+                                            <span className="text-xs font-medium text-muted-foreground">How to use:</span>
+                                            <ol className="list-decimal list-inside ml-1 mt-0.5 space-y-0.5">
+                                              {a.use_steps.map((s: string, si: number) => (
+                                                <li key={si} className="text-xs text-muted-foreground">{s}</li>
+                                              ))}
+                                            </ol>
+                                          </div>
+                                        ) : a.how_to_use ? (
+                                          <p className="text-xs text-muted-foreground"><span className="font-medium">How to use:</span> {a.how_to_use}</p>
+                                        ) : null}
+                                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                          <span className="flex items-center gap-1">
+                                            <Clock className="w-3 h-3" />
+                                            {a.time_estimate_minutes ? `${a.time_estimate_minutes} min` : a.time_estimate || '30 min'}
+                                          </span>
+                                          {a.success_metric && (
+                                            <span className="flex items-center gap-1 text-primary/80">
+                                              ✓ {a.success_metric}
+                                            </span>
+                                          )}
                                         </div>
                                       </div>
                                     </div>
