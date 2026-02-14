@@ -27,13 +27,18 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 async function fetchRole(userId: string): Promise<AppRole> {
-  const { data } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', userId)
-    .limit(1)
-    .maybeSingle();
-  return (data?.role as AppRole) || 'student';
+  try {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle();
+    return (data?.role as AppRole) || 'student';
+  } catch (e) {
+    console.error('fetchRole error:', e);
+    return 'student';
+  }
 }
 
 async function buildAuthUser(supaUser: SupabaseUser): Promise<AuthUser> {
@@ -54,12 +59,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
-          const authUser = await buildAuthUser(session.user);
-          setUser(authUser);
+          // Use setTimeout to avoid blocking the auth state change callback
+          setTimeout(async () => {
+            try {
+              const authUser = await buildAuthUser(session.user);
+              setUser(authUser);
+            } catch (e) {
+              console.error('buildAuthUser error:', e);
+              setUser({ id: session.user.id, email: session.user.email || '', role: 'student' });
+            }
+            setLoading(false);
+          }, 0);
         } else {
           setUser(null);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 

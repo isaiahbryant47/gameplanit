@@ -93,15 +93,18 @@ export default function Onboarding() {
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
-    const valid = schema.safeParse({ email: f.email, password: f.password });
-    if (!valid.success) return setError(valid.error.issues[0].message);
+    let currentUserId = user?.id;
+    // Only validate email/password if user isn't already logged in
+    if (!currentUserId) {
+      const valid = schema.safeParse({ email: f.email, password: f.password });
+      if (!valid.success) return setError(valid.error.issues[0].message);
+    }
     const finalZip = f.zipCode.trim() || '191';
 
     setSubmitting(true);
     setError('');
 
     // If not already logged in, register via Supabase Auth
-    let currentUserId = user?.id;
     if (!currentUserId) {
       const result = await register(f.email, f.password);
       if (result.error) {
