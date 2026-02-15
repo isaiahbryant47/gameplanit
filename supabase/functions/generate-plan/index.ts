@@ -7,6 +7,73 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const VALID_TRANSPORT = ["walk", "public", "car", "mixed", "virtual"];
+
+// ── Input Validation ──
+function validateProfileInput(body: unknown): { valid: true; profile: ProfileInput; userId: string } | { valid: false; error: string } {
+  if (!body || typeof body !== "object") return { valid: false, error: "Request body must be a JSON object" };
+  const b = body as Record<string, unknown>;
+
+  if (!b.userId || typeof b.userId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(b.userId)) {
+    return { valid: false, error: "userId must be a valid UUID" };
+  }
+  if (!b.profile || typeof b.profile !== "object") {
+    return { valid: false, error: "profile is required and must be an object" };
+  }
+
+  const p = b.profile as Record<string, unknown>;
+
+  if (!p.gradeLevel || typeof p.gradeLevel !== "string" || p.gradeLevel.length > 10) {
+    return { valid: false, error: "profile.gradeLevel is required (string, max 10 chars)" };
+  }
+  if (!p.zipCode || typeof p.zipCode !== "string" || !/^\d{5}$/.test(p.zipCode)) {
+    return { valid: false, error: "profile.zipCode must be a 5-digit string" };
+  }
+  if (p.interests && (!Array.isArray(p.interests) || p.interests.length > 20 || p.interests.some((i: unknown) => typeof i !== "string" || (i as string).length > 100))) {
+    return { valid: false, error: "profile.interests must be an array of up to 20 strings (max 100 chars each)" };
+  }
+  if (p.goals && (!Array.isArray(p.goals) || p.goals.length > 10 || p.goals.some((g: unknown) => typeof g !== "string" || (g as string).length > 200))) {
+    return { valid: false, error: "profile.goals must be an array of up to 10 strings (max 200 chars each)" };
+  }
+
+  const constraints = p.constraints as Record<string, unknown> | undefined;
+  if (!constraints || typeof constraints !== "object") {
+    return { valid: false, error: "profile.constraints is required" };
+  }
+  if (typeof constraints.timePerWeekHours !== "number" || constraints.timePerWeekHours < 0 || constraints.timePerWeekHours > 168) {
+    return { valid: false, error: "profile.constraints.timePerWeekHours must be a number between 0 and 168" };
+  }
+  if (typeof constraints.budgetPerMonth !== "number" || constraints.budgetPerMonth < 0 || constraints.budgetPerMonth > 10000) {
+    return { valid: false, error: "profile.constraints.budgetPerMonth must be a number between 0 and 10000" };
+  }
+  if (constraints.transportation && (typeof constraints.transportation !== "string" || !VALID_TRANSPORT.includes(constraints.transportation))) {
+    return { valid: false, error: `profile.constraints.transportation must be one of: ${VALID_TRANSPORT.join(", ")}` };
+  }
+  if (constraints.responsibilities && (typeof constraints.responsibilities !== "string" || (constraints.responsibilities as string).length > 500)) {
+    return { valid: false, error: "profile.constraints.responsibilities must be a string (max 500 chars)" };
+  }
+
+  // Optional string fields
+  for (const field of ["careerPathId", "pathwayId"] as const) {
+    if (p[field] && (typeof p[field] !== "string" || !/^[0-9a-f]{8}-/i.test(p[field] as string))) {
+      return { valid: false, error: `profile.${field} must be a valid UUID if provided` };
+    }
+  }
+  for (const field of ["outcomeStatement", "targetDate", "goalDomain", "careerDomainName", "careerPathName", "stage", "previousCycleSummary"] as const) {
+    if (p[field] && (typeof p[field] !== "string" || (p[field] as string).length > 500)) {
+      return { valid: false, error: `profile.${field} must be a string (max 500 chars) if provided` };
+    }
+  }
+  if (p.cycleNumber !== undefined && (typeof p.cycleNumber !== "number" || p.cycleNumber < 1 || p.cycleNumber > 100)) {
+    return { valid: false, error: "profile.cycleNumber must be a number between 1 and 100" };
+  }
+  if (p.primaryPillarFocus && (!Array.isArray(p.primaryPillarFocus) || p.primaryPillarFocus.length > 4 || p.primaryPillarFocus.some((f: unknown) => typeof f !== "string" || (f as string).length > 100))) {
+    return { valid: false, error: "profile.primaryPillarFocus must be an array of up to 4 strings" };
+  }
+
+  return { valid: true, profile: p as unknown as ProfileInput, userId: b.userId as string };
+}
+
 // ── Structured JSON schema for the LLM via tool calling ──
 const weekActionSchema = {
   type: "object" as const,
@@ -82,12 +149,10 @@ interface ProfileInput {
     responsibilities: string;
   };
   baseline?: { gpa?: number; attendance?: number };
-  // Career-first fields
   careerPathId?: string;
   careerDomainName?: string;
   careerPathName?: string;
   primaryPillarFocus?: string[];
-  // Legacy fields
   goalDomain?: string;
   pathwayId?: string;
   outcomeStatement?: string;
@@ -211,10 +276,9 @@ async function callLLM(profile: ProfileInput): Promise<unknown> {
 
   if (!response.ok) {
     const status = response.status;
-    const text = await response.text();
     if (status === 429) throw new Error("RATE_LIMITED");
     if (status === 402) throw new Error("PAYMENT_REQUIRED");
-    console.error("LLM error:", status, text);
+    console.error("LLM error:", status);
     throw new Error(`LLM returned ${status}`);
   }
 
@@ -264,9 +328,7 @@ function validatePlan(raw: unknown): Week[] {
         throw new Error(`INVALID_PLAN: Week ${i + 1}, action ${j + 1} missing task or resource`);
       }
 
-      // Normalize pillar
       let pillar = typeof a.pillar === "string" ? a.pillar : "Skill Development";
-      // Fuzzy match
       if (!validPillars.includes(pillar)) {
         const lower = pillar.toLowerCase();
         pillar = validPillars.find(p => lower.includes(p.toLowerCase().split(" ")[0])) || "Skill Development";
@@ -312,7 +374,7 @@ function validatePlan(raw: unknown): Week[] {
   });
 }
 
-// ── Save to DB ──
+// ── Save to DB (uses service role - user verified above) ──
 async function savePlan(userId: string, title: string, weeks: Week[], profile: ProfileInput) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -331,7 +393,6 @@ async function savePlan(userId: string, title: string, weeks: Week[], profile: P
       target_date: profile.targetDate || null,
       goal_domain: profile.goalDomain || null,
       stage: profile.stage || "foundation",
-      // Legacy compat
       pathway_id: profile.pathwayId || null,
     })
     .select("id")
@@ -358,12 +419,45 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { profile, userId } = await req.json();
+    // ── Authentication ──
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (!profile || !userId) {
-      return new Response(JSON.stringify({ error: "Missing profile or userId" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const authenticatedUserId = claimsData.claims.sub as string;
+
+    // ── Input Validation ──
+    const body = await req.json();
+    const validation = validateProfileInput(body);
+    if (!validation.valid) {
+      return new Response(JSON.stringify({ error: validation.error }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { profile, userId } = validation;
+
+    // ── Authorization: userId must match authenticated user ──
+    if (userId !== authenticatedUserId) {
+      return new Response(JSON.stringify({ error: "Forbidden: cannot create plans for other users" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -409,7 +503,7 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: msg }), {
+    return new Response(JSON.stringify({ error: "An internal error occurred" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
