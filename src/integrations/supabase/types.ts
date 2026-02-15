@@ -649,6 +649,88 @@ export type Database = {
           },
         ]
       }
+      user_pillar_progress: {
+        Row: {
+          career_pillar_id: string
+          cycle_contribution: number
+          id: string
+          last_updated: string
+          milestone_contribution: number
+          opportunity_contribution: number
+          progress_score: number
+          user_id: string
+        }
+        Insert: {
+          career_pillar_id: string
+          cycle_contribution?: number
+          id?: string
+          last_updated?: string
+          milestone_contribution?: number
+          opportunity_contribution?: number
+          progress_score?: number
+          user_id: string
+        }
+        Update: {
+          career_pillar_id?: string
+          cycle_contribution?: number
+          id?: string
+          last_updated?: string
+          milestone_contribution?: number
+          opportunity_contribution?: number
+          progress_score?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_pillar_progress_career_pillar_id_fkey"
+            columns: ["career_pillar_id"]
+            isOneToOne: false
+            referencedRelation: "career_pillars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_readiness: {
+        Row: {
+          career_path_id: string
+          id: string
+          last_updated: string
+          overall_score: number
+          previous_score: number
+          strongest_pillar: string | null
+          user_id: string
+          weakest_pillar: string | null
+        }
+        Insert: {
+          career_path_id: string
+          id?: string
+          last_updated?: string
+          overall_score?: number
+          previous_score?: number
+          strongest_pillar?: string | null
+          user_id: string
+          weakest_pillar?: string | null
+        }
+        Update: {
+          career_path_id?: string
+          id?: string
+          last_updated?: string
+          overall_score?: number
+          previous_score?: number
+          strongest_pillar?: string | null
+          user_id?: string
+          weakest_pillar?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_readiness_career_path_id_fkey"
+            columns: ["career_path_id"]
+            isOneToOne: false
+            referencedRelation: "career_paths"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string

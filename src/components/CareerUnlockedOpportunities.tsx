@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import type { UserCareerUnlock, CareerUnlockRule, OpportunityType } from '@/lib/types';
 import { fetchUserUnlocks, fetchUnlockRules, markOpportunitySeen, markOpportunityAccepted, getUnlockReason } from '@/lib/unlockService';
-import { Trophy, ExternalLink, ChevronDown, ChevronUp, Briefcase, GraduationCap, Award, BookOpen, Calendar, Swords, Check, Eye } from 'lucide-react';
+import { getDifficultyTier } from '@/lib/readinessEngine';
+import { Trophy, ExternalLink, ChevronDown, ChevronUp, Briefcase, GraduationCap, Award, BookOpen, Calendar, Swords, Check, Eye, Star } from 'lucide-react';
 
 interface Props {
   userId: string;
   careerPathId?: string;
   completionRate: number;
   cycleNumber: number;
+  overallReadinessScore?: number;
 }
 
 const typeConfig: Record<OpportunityType, { label: string; icon: typeof Briefcase; color: string }> = {
@@ -19,7 +21,7 @@ const typeConfig: Record<OpportunityType, { label: string; icon: typeof Briefcas
   competition: { label: 'Competition', icon: Swords, color: 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30' },
 };
 
-export default function CareerUnlockedOpportunities({ userId, careerPathId, completionRate, cycleNumber }: Props) {
+export default function CareerUnlockedOpportunities({ userId, careerPathId, completionRate, cycleNumber, overallReadinessScore = 0 }: Props) {
   const [unlocks, setUnlocks] = useState<UserCareerUnlock[]>([]);
   const [rules, setRules] = useState<CareerUnlockRule[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -42,10 +44,16 @@ export default function CareerUnlockedOpportunities({ userId, careerPathId, comp
 
   const unseenCount = unlocks.filter(u => !u.seen).length;
 
-  // Sort: unseen first, then by difficulty level descending
+  const userTier = getDifficultyTier(overallReadinessScore);
+
+  // Sort: unseen first, then emphasized (within tier), then by difficulty
   const sorted = [...unlocks].sort((a, b) => {
     if (!a.seen && b.seen) return -1;
     if (a.seen && !b.seen) return 1;
+    const aEmphasized = (a.opportunity?.difficultyLevel || 1) <= userTier;
+    const bEmphasized = (b.opportunity?.difficultyLevel || 1) <= userTier;
+    if (aEmphasized && !bEmphasized) return -1;
+    if (!aEmphasized && bEmphasized) return 1;
     return (b.opportunity?.difficultyLevel || 0) - (a.opportunity?.difficultyLevel || 0);
   });
 
