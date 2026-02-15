@@ -8,6 +8,7 @@ export interface StructuredAction {
   use_steps: string[];
   time_estimate_minutes: number;
   success_metric: string;
+  pillar?: string;
   // Legacy compat
   access?: string;
   how_to_use?: string;
@@ -35,13 +36,14 @@ function normalizeAction(a: Record<string, unknown>): StructuredAction {
     use_steps: Array.isArray(a.use_steps) ? a.use_steps.map(String) : (typeof a.how_to_use === "string" ? [a.how_to_use] : []),
     time_estimate_minutes: typeof a.time_estimate_minutes === "number" ? a.time_estimate_minutes : (typeof a.time_estimate === "string" ? parseInt(a.time_estimate, 10) || 30 : 30),
     success_metric: typeof a.success_metric === "string" ? a.success_metric : "Complete the task as described",
+    pillar: typeof a.pillar === "string" ? a.pillar : undefined,
   };
 }
 
 export async function generateLLMPlan(
   profile: Profile,
   userId: string,
-  options?: { cycleNumber?: number; previousCycleSummary?: string; stage?: string }
+  options?: { cycleNumber?: number; previousCycleSummary?: string; stage?: string; primaryPillarFocus?: string[] }
 ): Promise<GeneratedPlan> {
   const { data, error } = await supabase.functions.invoke("generate-plan", {
     body: {
@@ -53,27 +55,28 @@ export async function generateLLMPlan(
         zipCode: profile.zipCode,
         constraints: profile.constraints,
         baseline: profile.baseline,
-        goalDomain: profile.goalDomain,
-        pathwayId: profile.pathwayId,
+        // Career-first fields
+        careerPathId: profile.careerPathId,
+        careerDomainName: profile.careerDomainName,
+        careerPathName: profile.careerPathName,
         outcomeStatement: profile.outcomeStatement,
         targetDate: profile.targetDate,
         domainBaseline: profile.domainBaseline,
+        // Legacy compat
+        goalDomain: profile.goalDomain,
+        pathwayId: profile.pathwayId,
+        // Cycle options
         cycleNumber: options?.cycleNumber,
         previousCycleSummary: options?.previousCycleSummary,
         stage: options?.stage || "foundation",
+        primaryPillarFocus: options?.primaryPillarFocus,
       },
     },
   });
 
-  if (error) {
-    throw new Error(error.message || "Failed to generate plan");
-  }
+  if (error) throw new Error(error.message || "Failed to generate plan");
+  if (data?.error) throw new Error(data.error);
 
-  if (data?.error) {
-    throw new Error(data.error);
-  }
-
-  // Normalize actions in response
   const result = data as GeneratedPlan;
   if (result.weeks) {
     result.weeks = result.weeks.map(w => ({

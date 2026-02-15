@@ -3,20 +3,23 @@ import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
 import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
 import { generateLLMPlan, type StructuredWeek, type StructuredAction } from '@/lib/llmPlanService';
-import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle, CheckSquare, Square, Trophy, BookOpen, Clock, Sparkles, Compass, ArrowRight } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle, CheckSquare, Square, Trophy, BookOpen, Clock, Sparkles, Compass, ArrowRight, Lock, GraduationCap, Wrench, Users, FolderOpen } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
 import ResourceDiscovery from '@/components/ResourceDiscovery';
 import PlanCalendarView from '@/components/PlanCalendarView';
 import StudentProfile from '@/components/StudentProfile';
 import KpiSection from '@/components/KpiSection';
 import AdherencePrediction from '@/components/AdherencePrediction';
 import UnlockedOpportunities from '@/components/UnlockedOpportunities';
+import { fetchCareerPillars } from '@/lib/careerService';
+import type { CareerPillar } from '@/lib/types';
 import { toast } from 'sonner';
 
-const domainLabels: Record<string, { label: string; emoji: string }> = {
-  career: { label: 'Career', emoji: '💼' },
-  college: { label: 'College', emoji: '🎓' },
-  health_fitness: { label: 'Health & Fitness', emoji: '💪' },
+const pillarIcons: Record<string, typeof GraduationCap> = {
+  'Academic Readiness': GraduationCap,
+  'Skill Development': Wrench,
+  'Exposure & Networking': Users,
+  'Proof & Portfolio': FolderOpen,
 };
 
 export default function Dashboard() {
@@ -25,6 +28,7 @@ export default function Dashboard() {
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [showProfile, setShowProfile] = useState(false);
+  const [pillars, setPillars] = useState<CareerPillar[]>([]);
   const [structuredWeeks] = useState<StructuredWeek[]>(() => {
     if (!user) return [];
     try {
@@ -38,9 +42,18 @@ export default function Dashboard() {
     return p;
   });
 
+  const profile = user ? storage.allProfiles().find((p) => p.userId === user.id) : undefined;
+  const plan = user ? storage.allPlans().find((p) => p.userId === user.id) : undefined;
+
+  // Fetch pillars for career path (must be before early return)
+  useEffect(() => {
+    const cpId = profile?.careerPathId || (plan as any)?.careerPathId;
+    if (cpId) {
+      fetchCareerPillars(cpId).then(setPillars);
+    }
+  }, [profile?.careerPathId, (plan as any)?.careerPathId]);
+
   if (!user) return <Navigate to="/login" />;
-  const profile = storage.allProfiles().find((p) => p.userId === user.id);
-  const plan = storage.allPlans().find((p) => p.userId === user.id);
 
   if (!profile || !plan) {
     return (
@@ -55,13 +68,21 @@ export default function Dashboard() {
     );
   }
 
-  // Calculate completion rate for unlock rules
+  // Calculate completion rate
   const totalActions = plan.weeks.reduce((sum, w) => sum + w.actions.length, 0);
   const completedCount = plan.weeks.reduce((sum, w) =>
     sum + w.actions.filter((_, i) => progress.completedActions[`${w.id}-${i}`]).length, 0
   );
   const completionRate = totalActions > 0 ? completedCount / totalActions : 0;
   const cycleNumber = plan.cycleNumber || 1;
+
+  // Career info
+  const careerPathName = profile.careerPathName || 'General Exploration';
+  const careerDomainName = profile.careerDomainName || '';
+  const primaryPillarFocus = plan.primaryPillarFocus || ['Academic Readiness', 'Exposure & Networking'];
+
+  // Placeholder readiness score (30% static for Phase 1)
+  const readinessScore = 30;
 
   const regenerate = async () => {
     try {
@@ -73,7 +94,7 @@ export default function Dashboard() {
         weekNumber: w.week,
         focus: w.focus,
         actions: w.actions.map(a => a.task),
-        resources: w.actions.map(a => `${a.resource} — ${a.access}`),
+        resources: w.actions.map(a => `${a.resource} — ${a.access_steps?.[0] || ''}`),
         milestones: [w.milestone],
       }));
       const updated = { ...plan, id: result.planId, createdAt: new Date().toISOString(), weeks: localWeeks };
@@ -99,8 +120,6 @@ export default function Dashboard() {
     w.document.close();
     w.print();
   };
-
-  const domainInfo = profile.goalDomain ? domainLabels[profile.goalDomain] : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -142,39 +161,74 @@ export default function Dashboard() {
 
       {/* Weeks */}
       <div className="max-w-4xl mx-auto px-6 py-6 space-y-4">
-        {/* Pathway Header */}
-        {(profile.goalDomain || profile.outcomeStatement) && (
-          <div className="rounded-xl border border-primary/20 bg-accent/30 p-5 space-y-2">
-            <div className="flex items-center gap-3">
-              <Compass className="w-5 h-5 text-primary" />
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {domainInfo && (
-                     <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                       {domainInfo.emoji} {domainInfo.label}
-                     </span>
-                   )}
-                   <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                     Cycle {cycleNumber}
-                   </span>
-                   <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground capitalize">
-                     {(plan as any).stage || 'Foundation'}
-                   </span>
-                </div>
-                {profile.outcomeStatement && (
-                  <p className="text-sm font-medium text-card-foreground mt-1">{profile.outcomeStatement}</p>
+        {/* Career Path Header */}
+        <div className="rounded-xl border border-primary/20 bg-accent/30 p-5 space-y-3">
+          <div className="flex items-center gap-3">
+            <Compass className="w-5 h-5 text-primary" />
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                {careerDomainName && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                    {careerDomainName}
+                  </span>
                 )}
+                <span className="text-sm font-semibold text-card-foreground">
+                  Career Path: {careerPathName}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                  Cycle {cycleNumber}
+                </span>
               </div>
-            </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span>{Math.round(completionRate * 100)}% complete</span>
-              {profile.targetDate && <span>Target: {profile.targetDate.replace('_', ' ')}</span>}
-            </div>
-            <div className="h-2 rounded-full bg-secondary overflow-hidden">
-              <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${completionRate * 100}%` }} />
+              {profile.outcomeStatement && (
+                <p className="text-sm text-muted-foreground mt-1">{profile.outcomeStatement}</p>
+              )}
             </div>
           </div>
-        )}
+
+          {/* Primary Pillars This Cycle */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Primary Pillars This Cycle:</p>
+            <div className="flex flex-wrap gap-2">
+              {primaryPillarFocus.map(p => {
+                const Icon = pillarIcons[p] || Compass;
+                return (
+                  <span key={p} className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                    <Icon className="w-3.5 h-3.5" />
+                    {p}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Career Readiness Bar (placeholder) */}
+          <div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <span>Career Readiness</span>
+              <span>{readinessScore}%</span>
+            </div>
+            <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
+              <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${readinessScore}%` }} />
+            </div>
+          </div>
+
+          {/* Completion */}
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span>{Math.round(completionRate * 100)}% plan complete</span>
+            {profile.targetDate && <span>Target: {profile.targetDate.replace('_', ' ')}</span>}
+          </div>
+        </div>
+
+        {/* Next Opportunities (Coming Soon) */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <Lock className="w-4 h-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-card-foreground">Next Opportunities (Coming Soon)</h3>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Complete cycles and build your career readiness to unlock internships, mentorships, scholarships, and more. The opportunity engine is being built for Phase 2.
+          </p>
+        </div>
 
         {/* Student Profile */}
         {showProfile && (
@@ -197,7 +251,7 @@ export default function Dashboard() {
         {/* KPIs */}
         <KpiSection plan={plan} profile={profile} userId={user.id} />
 
-        {/* Unlocked Opportunities */}
+        {/* Legacy Unlocked Opportunities */}
         {profile.pathwayId && (
           <UnlockedOpportunities
             pathwayId={profile.pathwayId}
@@ -222,13 +276,13 @@ export default function Dashboard() {
               onClick={async () => {
                 try {
                   toast.info(`Generating Cycle ${cycleNumber + 1} with AI...`);
-                  // Build summary of completed cycle
                   const completedGoals = Object.keys(progress.completedGoals);
-                  const summary = `Cycle ${cycleNumber} completed with ${Math.round(completionRate * 100)}% adherence. Goals completed: ${completedGoals.length > 0 ? completedGoals.join(', ') : 'general progress'}. Milestones reached: ${plan.weeks.filter((_, wi) => plan.weeks[wi].actions.every((_, ai) => progress.completedActions[`${plan.weeks[wi].id}-${ai}`])).map(w => w.milestones[0]).filter(Boolean).join('; ') || 'various'}.`;
+                  const summary = `Cycle ${cycleNumber} completed with ${Math.round(completionRate * 100)}% adherence. Goals completed: ${completedGoals.length > 0 ? completedGoals.join(', ') : 'general progress'}.`;
                   
                   const result = await generateLLMPlan(profile, user.id, {
                     cycleNumber: cycleNumber + 1,
                     previousCycleSummary: summary,
+                    primaryPillarFocus: primaryPillarFocus,
                   });
                   const localWeeks = result.weeks.map((w) => ({
                     id: crypto.randomUUID(),
@@ -236,25 +290,24 @@ export default function Dashboard() {
                     weekNumber: w.week,
                     focus: w.focus,
                     actions: w.actions.map(a => a.task),
-                    resources: w.actions.map(a => `${a.resource} — ${a.access}`),
+                    resources: w.actions.map(a => `${a.resource}`),
                     milestones: [w.milestone],
                   }));
                   const newPlan = {
                     id: result.planId,
                     userId: user.id,
                     profileId: profile.id,
-                    title: `${plan.title.replace(/Cycle \d+/, '').trim()} — Cycle ${cycleNumber + 1}`,
+                    title: `${careerPathName} — Cycle ${cycleNumber + 1}`,
                     createdAt: new Date().toISOString(),
                     weeks: localWeeks,
-                    pathwayId: profile.pathwayId,
+                    careerPathId: profile.careerPathId,
                     cycleNumber: cycleNumber + 1,
                     outcomeStatement: profile.outcomeStatement,
                     targetDate: profile.targetDate,
-                    goalDomain: profile.goalDomain,
+                    primaryPillarFocus: primaryPillarFocus,
                   };
                   storage.savePlans([...storage.allPlans().filter((p) => p.userId !== user.id), newPlan]);
                   localStorage.setItem(`gp_structured_weeks_${user.id}`, JSON.stringify(result.weeks));
-                  // Reset progress for new cycle
                   storage.saveProgress(user.id, { completedActions: {}, resourcesEngaged: progress.resourcesEngaged, academicLog: progress.academicLog, completedGoals: {} });
                   toast.success(`Cycle ${cycleNumber + 1} is ready!`);
                   nav(0);
@@ -273,12 +326,11 @@ export default function Dashboard() {
         {/* AI Resource Discovery */}
         <ResourceDiscovery profile={profile} />
 
-      {/* Plan by Goals */}
+        {/* Plan by Goals */}
         {view === 'calendar' ? (
           <PlanCalendarView plan={plan} />
         ) : (
           (() => {
-            // Group weeks by goal
             const goalMap = new Map<string, typeof plan.weeks>();
             plan.weeks.forEach(week => {
               const goal = week.focus.includes(' - ') ? week.focus.split(' - ').slice(1).join(' - ') : week.focus;
@@ -355,6 +407,7 @@ export default function Dashboard() {
                                 {sWeek.actions.map((a: StructuredAction, i: number) => {
                                   const actionKey = `${week.id}-${i}`;
                                   const done = !!progress.completedActions[actionKey];
+                                  const PillarIcon = a.pillar ? pillarIcons[a.pillar] || Compass : null;
                                   return (
                                     <div key={i} className={`rounded-lg border p-3 space-y-2 transition-colors ${done ? 'border-primary/30 bg-primary/5' : 'border-border bg-card'}`}>
                                       <div className="flex items-start gap-2">
@@ -371,9 +424,17 @@ export default function Dashboard() {
                                         <span className={`text-sm font-medium ${done ? 'line-through text-muted-foreground' : 'text-card-foreground'}`}>{a.task}</span>
                                       </div>
                                       <div className="ml-6 space-y-1.5">
-                                        <div className="flex items-center gap-1.5">
-                                          <BookOpen className="w-3 h-3 text-primary shrink-0" />
-                                          <span className="text-xs font-semibold text-foreground">{a.resource}</span>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <div className="flex items-center gap-1.5">
+                                            <BookOpen className="w-3 h-3 text-primary shrink-0" />
+                                            <span className="text-xs font-semibold text-foreground">{a.resource}</span>
+                                          </div>
+                                          {a.pillar && PillarIcon && (
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground">
+                                              <PillarIcon className="w-3 h-3" />
+                                              {a.pillar}
+                                            </span>
+                                          )}
                                         </div>
                                         {a.access_steps && a.access_steps.length > 0 ? (
                                           <div>
