@@ -3,15 +3,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
 import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
 import { generateLLMPlan, type StructuredWeek, type StructuredAction } from '@/lib/llmPlanService';
-import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle, CheckSquare, Square, Trophy, BookOpen, Clock, Sparkles, Compass, ArrowRight, Lock, GraduationCap, Wrench, Users, FolderOpen } from 'lucide-react';
-import { useState, useMemo, useEffect } from 'react';
+import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle, CheckSquare, Square, Trophy, BookOpen, Clock, Sparkles, Compass, ArrowRight, GraduationCap, Wrench, Users, FolderOpen, Zap, TrendingUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import ResourceDiscovery from '@/components/ResourceDiscovery';
 import PlanCalendarView from '@/components/PlanCalendarView';
 import StudentProfile from '@/components/StudentProfile';
 import KpiSection from '@/components/KpiSection';
 import AdherencePrediction from '@/components/AdherencePrediction';
-import UnlockedOpportunities from '@/components/UnlockedOpportunities';
+import CareerUnlockedOpportunities from '@/components/CareerUnlockedOpportunities';
 import { fetchCareerPillars } from '@/lib/careerService';
+import { evaluateUnlocks, computeReadinessScore, fetchUserUnlocks } from '@/lib/unlockService';
 import type { CareerPillar } from '@/lib/types';
 import { toast } from 'sonner';
 
@@ -29,6 +30,7 @@ export default function Dashboard() {
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [showProfile, setShowProfile] = useState(false);
   const [pillars, setPillars] = useState<CareerPillar[]>([]);
+  const [unlockCount, setUnlockCount] = useState(0);
   const [structuredWeeks] = useState<StructuredWeek[]>(() => {
     if (!user) return [];
     try {
@@ -45,13 +47,60 @@ export default function Dashboard() {
   const profile = user ? storage.allProfiles().find((p) => p.userId === user.id) : undefined;
   const plan = user ? storage.allPlans().find((p) => p.userId === user.id) : undefined;
 
+  // Compute completion for hooks
+  const totalActions = plan?.weeks.reduce((sum, w) => sum + w.actions.length, 0) || 0;
+  const completedCount = plan?.weeks.reduce((sum, w) =>
+    sum + w.actions.filter((_, i) => progress.completedActions[`${w.id}-${i}`]).length, 0
+  ) || 0;
+  const completionRate = totalActions > 0 ? completedCount / totalActions : 0;
+  const cycleNumber = plan?.cycleNumber || 1;
+  const careerPathIdForHook = profile?.careerPathId || (plan as any)?.careerPathId;
+
+  // Derive engaged pillars from completed structured actions
+  const engagedPillars = Array.from(new Set(
+    structuredWeeks.flatMap(w =>
+      w.actions
+        .filter((a, i) => {
+          const week = plan?.weeks.find(pw => pw.weekNumber === w.week);
+          return week && progress.completedActions[`${week.id}-${i}`];
+        })
+        .map(a => a.pillar)
+        .filter(Boolean) as string[]
+    )
+  ));
+
+  // Readiness score (Phase 2 placeholder formula)
+  const readinessScore = computeReadinessScore(
+    cycleNumber,
+    Math.round(completionRate * 100),
+    engagedPillars.length,
+    4
+  );
+
   // Fetch pillars for career path (must be before early return)
   useEffect(() => {
-    const cpId = profile?.careerPathId || (plan as any)?.careerPathId;
-    if (cpId) {
-      fetchCareerPillars(cpId).then(setPillars);
+    if (careerPathIdForHook) {
+      fetchCareerPillars(careerPathIdForHook).then(setPillars);
     }
-  }, [profile?.careerPathId, (plan as any)?.careerPathId]);
+  }, [careerPathIdForHook]);
+
+  // Run unlock evaluation when progress changes
+  useEffect(() => {
+    if (!user || !careerPathIdForHook) return;
+    evaluateUnlocks({
+      userId: user.id,
+      careerPathId: careerPathIdForHook,
+      cycleNumber,
+      milestoneCompletionRate: Math.round(completionRate * 100),
+      engagedPillars,
+    }).then(newUnlocks => {
+      if (newUnlocks.length > 0) {
+        setUnlockCount(prev => prev + newUnlocks.length);
+        toast.success(`🎉 You unlocked ${newUnlocks.length} new ${newUnlocks.length === 1 ? 'opportunity' : 'opportunities'}!`);
+      }
+    });
+  }, [user?.id, careerPathIdForHook, cycleNumber, Math.round(completionRate * 100), engagedPillars.join(',')]);
+
 
   if (!user) return <Navigate to="/login" />;
 
@@ -68,21 +117,10 @@ export default function Dashboard() {
     );
   }
 
-  // Calculate completion rate
-  const totalActions = plan.weeks.reduce((sum, w) => sum + w.actions.length, 0);
-  const completedCount = plan.weeks.reduce((sum, w) =>
-    sum + w.actions.filter((_, i) => progress.completedActions[`${w.id}-${i}`]).length, 0
-  );
-  const completionRate = totalActions > 0 ? completedCount / totalActions : 0;
-  const cycleNumber = plan.cycleNumber || 1;
-
   // Career info
   const careerPathName = profile.careerPathName || 'General Exploration';
   const careerDomainName = profile.careerDomainName || '';
   const primaryPillarFocus = plan.primaryPillarFocus || ['Academic Readiness', 'Exposure & Networking'];
-
-  // Placeholder readiness score (30% static for Phase 1)
-  const readinessScore = 30;
 
   const regenerate = async () => {
     try {
@@ -219,16 +257,28 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Next Opportunities (Coming Soon) */}
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <Lock className="w-4 h-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-card-foreground">Next Opportunities (Coming Soon)</h3>
+        {/* Unlocked Opportunities */}
+        {careerPathIdForHook && (
+          <CareerUnlockedOpportunities
+            userId={user.id}
+            careerPathId={careerPathIdForHook}
+            completionRate={completionRate}
+            cycleNumber={cycleNumber}
+          />
+        )}
+
+        {/* Next Recommended Move */}
+        {completionRate < 0.8 && (
+          <div className="rounded-xl border border-border bg-card p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold text-card-foreground">Next Recommended Move</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Keep working through your current cycle — you're at {Math.round(completionRate * 100)}% completion. Focus on {primaryPillarFocus[0] || 'your current actions'} to unlock new opportunities.
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Complete cycles and build your career readiness to unlock internships, mentorships, scholarships, and more. The opportunity engine is being built for Phase 2.
-          </p>
-        </div>
+        )}
 
         {/* Student Profile */}
         {showProfile && (
@@ -250,15 +300,6 @@ export default function Dashboard() {
 
         {/* KPIs */}
         <KpiSection plan={plan} profile={profile} userId={user.id} />
-
-        {/* Legacy Unlocked Opportunities */}
-        {profile.pathwayId && (
-          <UnlockedOpportunities
-            pathwayId={profile.pathwayId}
-            completionRate={completionRate}
-            cycleNumber={cycleNumber}
-          />
-        )}
 
         {/* Next Cycle CTA */}
         {completionRate >= 0.8 && (

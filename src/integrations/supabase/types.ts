@@ -35,6 +35,56 @@ export type Database = {
         }
         Relationships: []
       }
+      career_opportunities: {
+        Row: {
+          career_path_id: string
+          created_at: string
+          description: string
+          difficulty_level: number
+          external_url: string | null
+          id: string
+          is_active: boolean
+          next_action_instructions: string
+          next_action_label: string
+          title: string
+          type: Database["public"]["Enums"]["opportunity_type"]
+        }
+        Insert: {
+          career_path_id: string
+          created_at?: string
+          description: string
+          difficulty_level?: number
+          external_url?: string | null
+          id?: string
+          is_active?: boolean
+          next_action_instructions?: string
+          next_action_label?: string
+          title: string
+          type: Database["public"]["Enums"]["opportunity_type"]
+        }
+        Update: {
+          career_path_id?: string
+          created_at?: string
+          description?: string
+          difficulty_level?: number
+          external_url?: string | null
+          id?: string
+          is_active?: boolean
+          next_action_instructions?: string
+          next_action_label?: string
+          title?: string
+          type?: Database["public"]["Enums"]["opportunity_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_opportunities_career_path_id_fkey"
+            columns: ["career_path_id"]
+            isOneToOne: false
+            referencedRelation: "career_paths"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       career_paths: {
         Row: {
           created_at: string
@@ -104,6 +154,44 @@ export type Database = {
             columns: ["career_path_id"]
             isOneToOne: false
             referencedRelation: "career_paths"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      career_unlock_rules: {
+        Row: {
+          created_at: string
+          id: string
+          opportunity_id: string
+          required_cycle_number: number | null
+          required_manual_flags: Json | null
+          required_milestone_completion_rate: number
+          required_pillar: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          opportunity_id: string
+          required_cycle_number?: number | null
+          required_manual_flags?: Json | null
+          required_milestone_completion_rate?: number
+          required_pillar?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          opportunity_id?: string
+          required_cycle_number?: number | null
+          required_manual_flags?: Json | null
+          required_milestone_completion_rate?: number
+          required_pillar?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_unlock_rules_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "career_opportunities"
             referencedColumns: ["id"]
           },
         ]
@@ -491,6 +579,41 @@ export type Database = {
         }
         Relationships: []
       }
+      user_career_unlocks: {
+        Row: {
+          accepted: boolean
+          id: string
+          opportunity_id: string
+          seen: boolean
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          accepted?: boolean
+          id?: string
+          opportunity_id: string
+          seen?: boolean
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          accepted?: boolean
+          id?: string
+          opportunity_id?: string
+          seen?: boolean
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_career_unlocks_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "career_opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_pathways: {
         Row: {
           created_at: string
@@ -634,6 +757,13 @@ export type Database = {
     Enums: {
       app_role: "student" | "caregiver" | "partner_admin"
       goal_domain: "college" | "career" | "health_fitness"
+      opportunity_type:
+        | "internship"
+        | "scholarship"
+        | "program"
+        | "certification"
+        | "event"
+        | "competition"
       resource_category:
         | "online_learning"
         | "local_opportunity"
@@ -771,6 +901,14 @@ export const Constants = {
     Enums: {
       app_role: ["student", "caregiver", "partner_admin"],
       goal_domain: ["college", "career", "health_fitness"],
+      opportunity_type: [
+        "internship",
+        "scholarship",
+        "program",
+        "certification",
+        "event",
+        "competition",
+      ],
       resource_category: [
         "online_learning",
         "local_opportunity",
