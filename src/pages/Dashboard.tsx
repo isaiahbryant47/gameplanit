@@ -3,8 +3,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
 import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
 import { generateLLMPlan, type StructuredWeek, type StructuredAction } from '@/lib/llmPlanService';
-import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle, CheckSquare, Square, Trophy, BookOpen, Clock, Sparkles, Compass, ArrowRight, GraduationCap, Wrench, Users, FolderOpen, Zap, TrendingUp } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { RefreshCw, Printer, LogOut, ChevronDown, List, CalendarDays, UserCircle, CheckSquare, Square, Trophy, BookOpen, Clock, Sparkles, Compass, ArrowRight, GraduationCap, Wrench, Users, FolderOpen, Zap, TrendingUp, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
 import ResourceDiscovery from '@/components/ResourceDiscovery';
 import PlanCalendarView from '@/components/PlanCalendarView';
 import StudentProfile from '@/components/StudentProfile';
@@ -12,7 +12,8 @@ import KpiSection from '@/components/KpiSection';
 import AdherencePrediction from '@/components/AdherencePrediction';
 import CareerUnlockedOpportunities from '@/components/CareerUnlockedOpportunities';
 import { fetchCareerPillars } from '@/lib/careerService';
-import { evaluateUnlocks, computeReadinessScore, fetchUserUnlocks } from '@/lib/unlockService';
+import { evaluateUnlocks, fetchUserUnlocks } from '@/lib/unlockService';
+import { recalculateReadiness, getReadinessExplanation, type ReadinessExplanation } from '@/lib/readinessEngine';
 import type { CareerPillar } from '@/lib/types';
 import { toast } from 'sonner';
 
@@ -30,7 +31,7 @@ export default function Dashboard() {
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [showProfile, setShowProfile] = useState(false);
   const [pillars, setPillars] = useState<CareerPillar[]>([]);
-  const [unlockCount, setUnlockCount] = useState(0);
+  const [readinessData, setReadinessData] = useState<ReadinessExplanation | null>(null);
   const [structuredWeeks] = useState<StructuredWeek[]>(() => {
     if (!user) return [];
     try {
@@ -69,13 +70,8 @@ export default function Dashboard() {
     )
   ));
 
-  // Readiness score (Phase 2 placeholder formula)
-  const readinessScore = computeReadinessScore(
-    cycleNumber,
-    Math.round(completionRate * 100),
-    engagedPillars.length,
-    4
-  );
+  // Readiness score (Phase 3 persistent engine)
+  const readinessScore = readinessData?.overallScore ?? 0;
 
   // Fetch pillars for career path (must be before early return)
   useEffect(() => {
@@ -84,22 +80,58 @@ export default function Dashboard() {
     }
   }, [careerPathIdForHook]);
 
-  // Run unlock evaluation when progress changes
+  // Run unlock evaluation + readiness recalculation when progress changes
+  const milestoneRateInt = Math.round(completionRate * 100);
+  const engagedPillarsKey = engagedPillars.join(',');
+
   useEffect(() => {
     if (!user || !careerPathIdForHook) return;
+
+    // Build per-pillar milestone rates from structured weeks
+    const pillarActionCounts: Record<string, { total: number; done: number }> = {};
+    structuredWeeks.forEach(w => {
+      w.actions.forEach((a, i) => {
+        const p = a.pillar || 'General';
+        if (!pillarActionCounts[p]) pillarActionCounts[p] = { total: 0, done: 0 };
+        pillarActionCounts[p].total++;
+        const week = plan?.weeks.find(pw => pw.weekNumber === w.week);
+        if (week && progress.completedActions[`${week.id}-${i}`]) {
+          pillarActionCounts[p].done++;
+        }
+      });
+    });
+    const pillarMilestoneRates: Record<string, number> = {};
+    for (const [name, counts] of Object.entries(pillarActionCounts)) {
+      pillarMilestoneRates[name] = counts.total > 0 ? Math.round((counts.done / counts.total) * 100) : 0;
+    }
+
+    // Determine accepted opportunity pillars (from unlock data)
+    const acceptedOpportunityPillars = engagedPillars; // approximation from pillar engagement
+
+    // Evaluate unlocks
     evaluateUnlocks({
       userId: user.id,
       careerPathId: careerPathIdForHook,
       cycleNumber,
-      milestoneCompletionRate: Math.round(completionRate * 100),
+      milestoneCompletionRate: milestoneRateInt,
       engagedPillars,
     }).then(newUnlocks => {
       if (newUnlocks.length > 0) {
-        setUnlockCount(prev => prev + newUnlocks.length);
         toast.success(`🎉 You unlocked ${newUnlocks.length} new ${newUnlocks.length === 1 ? 'opportunity' : 'opportunities'}!`);
       }
     });
-  }, [user?.id, careerPathIdForHook, cycleNumber, Math.round(completionRate * 100), engagedPillars.join(',')]);
+
+    // Recalculate readiness
+    recalculateReadiness({
+      userId: user.id,
+      careerPathId: careerPathIdForHook,
+      cycleNumber,
+      pillarMilestoneRates,
+      overallMilestoneRate: milestoneRateInt,
+      acceptedOpportunityPillars,
+    }).then(setReadinessData);
+
+  }, [user?.id, careerPathIdForHook, cycleNumber, milestoneRateInt, engagedPillarsKey]);
 
 
   if (!user) return <Navigate to="/login" />;
@@ -239,16 +271,59 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Career Readiness Bar (placeholder) */}
+          {/* Career Readiness Score (Phase 3) */}
           <div>
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-              <span>Career Readiness</span>
-              <span>{readinessScore}%</span>
+              <span className="font-medium">Career Readiness</span>
+              <span className="flex items-center gap-1 font-semibold text-foreground">
+                {readinessScore}%
+                {readinessData && readinessData.trend === 'up' && <ArrowUpRight className="w-3 h-3 text-emerald-500" />}
+                {readinessData && readinessData.trend === 'down' && <ArrowDownRight className="w-3 h-3 text-red-500" />}
+                {readinessData && readinessData.trend === 'stable' && <Minus className="w-3 h-3 text-muted-foreground" />}
+              </span>
             </div>
             <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
               <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${readinessScore}%` }} />
             </div>
           </div>
+
+          {/* Pillar Breakdown */}
+          {readinessData && readinessData.pillars.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Pillar Breakdown:</p>
+              {readinessData.pillars.map(p => {
+                const Icon = pillarIcons[p.name] || Compass;
+                return (
+                  <div key={p.name} className="space-y-0.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Icon className="w-3 h-3" />
+                        {p.name}
+                        <span className="text-[10px] text-muted-foreground/60">({Math.round(p.weight * 100)}%)</span>
+                      </span>
+                      <span className="font-medium text-foreground">{p.score}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                      <div className="h-full rounded-full bg-primary/70 transition-all duration-500" style={{ width: `${p.score}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Strongest / Weakest labels */}
+              <div className="flex flex-wrap gap-3 pt-1">
+                {readinessData.strongestPillar && (
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                    ★ Strongest: {readinessData.strongestPillar}
+                  </span>
+                )}
+                {readinessData.weakestPillar && readinessData.weakestPillar !== readinessData.strongestPillar && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                    ↑ Growth opportunity: {readinessData.weakestPillar}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Completion */}
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -264,21 +339,32 @@ export default function Dashboard() {
             careerPathId={careerPathIdForHook}
             completionRate={completionRate}
             cycleNumber={cycleNumber}
+            overallReadinessScore={readinessScore}
           />
         )}
 
-        {/* Next Recommended Move */}
-        {completionRate < 0.8 && (
-          <div className="rounded-xl border border-border bg-card p-5">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-semibold text-card-foreground">Next Recommended Move</h3>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Keep working through your current cycle — you're at {Math.round(completionRate * 100)}% completion. Focus on {primaryPillarFocus[0] || 'your current actions'} to unlock new opportunities.
-            </p>
+        {/* Next Recommended Move (Phase 3 — pillar-driven) */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold text-card-foreground">Next Recommended Move</h3>
           </div>
-        )}
+          {readinessData && completionRate >= 0.8 ? (
+            <div className="space-y-1.5">
+              <p className="text-xs text-foreground font-medium">
+                Recommended Next Focus: {readinessData.nextCycleRecommendation}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {readinessData.nextCycleReason}
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Keep working through your current cycle — you're at {Math.round(completionRate * 100)}% completion.
+              {readinessData?.weakestPillar && ` Focus on ${readinessData.weakestPillar} to unlock new opportunities.`}
+            </p>
+          )}
+        </div>
 
         {/* Student Profile */}
         {showProfile && (
