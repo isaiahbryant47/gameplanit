@@ -81,6 +81,38 @@ export interface Opportunity {
   next_step_url?: string;
 }
 
+export type OpportunityType = 'internship' | 'scholarship' | 'program' | 'certification' | 'event' | 'competition';
+
+export interface CareerOpportunity {
+  id: string;
+  careerPathId: string;
+  title: string;
+  description: string;
+  type: OpportunityType;
+  difficultyLevel: number;
+  externalUrl?: string;
+  nextActionLabel: string;
+  nextActionInstructions: string;
+}
+
+export interface CareerUnlockRule {
+  id: string;
+  opportunityId: string;
+  requiredCycleNumber?: number;
+  requiredPillar?: string;
+  requiredMilestoneCompletionRate: number;
+}
+
+export interface UserCareerUnlock {
+  id: string;
+  userId: string;
+  opportunityId: string;
+  unlockedAt: string;
+  seen: boolean;
+  accepted: boolean;
+  opportunity?: CareerOpportunity;
+}
+
 export interface PlanWeek {
   id: string;
   planId: string;
