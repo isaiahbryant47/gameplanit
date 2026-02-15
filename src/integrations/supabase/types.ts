@@ -14,6 +14,100 @@ export type Database = {
   }
   public: {
     Tables: {
+      career_domains: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      career_paths: {
+        Row: {
+          created_at: string
+          description: string
+          domain_id: string
+          id: string
+          is_active: boolean
+          name: string
+          recommended_education_notes: string
+          tags: string[]
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          domain_id: string
+          id?: string
+          is_active?: boolean
+          name: string
+          recommended_education_notes?: string
+          tags?: string[]
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          domain_id?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          recommended_education_notes?: string
+          tags?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_paths_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "career_domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      career_pillars: {
+        Row: {
+          career_path_id: string
+          created_at: string
+          id: string
+          name: string
+          weight: number
+        }
+        Insert: {
+          career_path_id: string
+          created_at?: string
+          id?: string
+          name: string
+          weight?: number
+        }
+        Update: {
+          career_path_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_pillars_career_path_id_fkey"
+            columns: ["career_path_id"]
+            isOneToOne: false
+            referencedRelation: "career_paths"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       opportunities: {
         Row: {
           created_at: string
@@ -162,12 +256,14 @@ export type Database = {
       }
       plans: {
         Row: {
+          career_path_id: string | null
           created_at: string
           cycle_number: number
           goal_domain: string | null
           id: string
           outcome_statement: string | null
           pathway_id: string | null
+          primary_pillar_focus: string[] | null
           profile_snapshot: Json
           stage: string
           target_date: string | null
@@ -175,12 +271,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          career_path_id?: string | null
           created_at?: string
           cycle_number?: number
           goal_domain?: string | null
           id?: string
           outcome_statement?: string | null
           pathway_id?: string | null
+          primary_pillar_focus?: string[] | null
           profile_snapshot?: Json
           stage?: string
           target_date?: string | null
@@ -188,12 +286,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          career_path_id?: string | null
           created_at?: string
           cycle_number?: number
           goal_domain?: string | null
           id?: string
           outcome_statement?: string | null
           pathway_id?: string | null
+          primary_pillar_focus?: string[] | null
           profile_snapshot?: Json
           stage?: string
           target_date?: string | null
@@ -201,6 +301,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "plans_career_path_id_fkey"
+            columns: ["career_path_id"]
+            isOneToOne: false
+            referencedRelation: "career_paths"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "plans_pathway_id_fkey"
             columns: ["pathway_id"]
@@ -255,6 +362,7 @@ export type Database = {
       profiles: {
         Row: {
           baseline_json: Json | null
+          career_path_id: string | null
           constraints_json: Json | null
           created_at: string
           domain_baseline: Json | null
@@ -274,6 +382,7 @@ export type Database = {
         }
         Insert: {
           baseline_json?: Json | null
+          career_path_id?: string | null
           constraints_json?: Json | null
           created_at?: string
           domain_baseline?: Json | null
@@ -293,6 +402,7 @@ export type Database = {
         }
         Update: {
           baseline_json?: Json | null
+          career_path_id?: string | null
           constraints_json?: Json | null
           created_at?: string
           domain_baseline?: Json | null
@@ -311,6 +421,13 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_career_path_id_fkey"
+            columns: ["career_path_id"]
+            isOneToOne: false
+            referencedRelation: "career_paths"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_pathway_id_fkey"
             columns: ["pathway_id"]

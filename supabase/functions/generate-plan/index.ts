@@ -13,6 +13,7 @@ const weekActionSchema = {
   properties: {
     task: { type: "string" as const, description: "A specific, actionable task the student should complete" },
     resource: { type: "string" as const, description: "Name of the resource to use" },
+    pillar: { type: "string" as const, description: "Which career readiness pillar this action advances: Academic Readiness, Skill Development, Exposure & Networking, or Proof & Portfolio" },
     access_steps: {
       type: "array" as const,
       items: { type: "string" as const },
@@ -26,7 +27,7 @@ const weekActionSchema = {
     time_estimate_minutes: { type: "number" as const, description: "Estimated time in minutes (e.g. 30)" },
     success_metric: { type: "string" as const, description: "A measurable indicator that this action was completed successfully" },
   },
-  required: ["task", "resource", "access_steps", "use_steps", "time_estimate_minutes", "success_metric"],
+  required: ["task", "resource", "pillar", "access_steps", "use_steps", "time_estimate_minutes", "success_metric"],
   additionalProperties: false,
 };
 
@@ -81,6 +82,12 @@ interface ProfileInput {
     responsibilities: string;
   };
   baseline?: { gpa?: number; attendance?: number };
+  // Career-first fields
+  careerPathId?: string;
+  careerDomainName?: string;
+  careerPathName?: string;
+  primaryPillarFocus?: string[];
+  // Legacy fields
   goalDomain?: string;
   pathwayId?: string;
   outcomeStatement?: string;
@@ -101,9 +108,12 @@ function buildSystemPrompt(profile: ProfileInput): string {
 
   const responsibilities = profile.constraints.responsibilities || "none reported";
 
-  const domainLabel = profile.goalDomain
-    ? { college: "College Readiness", career: "Career Exploration", health_fitness: "Health & Fitness" }[profile.goalDomain] || profile.goalDomain
-    : null;
+  const careerPathName = profile.careerPathName || "General Exploration";
+  const careerDomainName = profile.careerDomainName || "General";
+
+  const pillarFocus = profile.primaryPillarFocus && profile.primaryPillarFocus.length > 0
+    ? profile.primaryPillarFocus.join(", ")
+    : "Academic Readiness, Exposure & Networking";
 
   const stageLabel = profile.stage
     ? { foundation: "Foundation (build basics)", proof: "Proof (demonstrate ability)", leverage: "Leverage (advance toward outcome)" }[profile.stage] || profile.stage
@@ -113,10 +123,19 @@ function buildSystemPrompt(profile: ProfileInput): string {
     ? Object.entries(profile.domainBaseline).map(([k, v]) => `- ${k}: ${v}`).join("\n")
     : "";
 
-  return `You are the planning engine inside GameplanIT, a platform that builds personalized 12-week action plans for middle and high school students (grades 7–12).
+  return `You are the planning engine inside GameplanIT, a Career-First Pathway Engine for middle and high school students (grades 7–12).
 
-${domainLabel ? `PATHWAY: ${domainLabel}` : ""}
+CAREER DOMAIN: ${careerDomainName}
+CAREER PATH: ${careerPathName}
 STAGE: ${stageLabel}
+PRIMARY PILLARS THIS CYCLE: ${pillarFocus}
+
+CAREER READINESS PILLARS (every action must map to one):
+1. Academic Readiness — grades, coursework, test prep aligned to this career
+2. Skill Development — hands-on skills, tools, certifications relevant to this career
+3. Exposure & Networking — job shadowing, mentors, industry events, informational interviews
+4. Proof & Portfolio — projects, portfolios, certifications that prove readiness
+
 ${profile.outcomeStatement ? `OUTCOME GOAL: ${profile.outcomeStatement}` : ""}
 ${profile.targetDate ? `TARGET TIMEFRAME: ${profile.targetDate}` : ""}
 
@@ -131,31 +150,34 @@ STUDENT PROFILE:
 - Outside responsibilities: ${responsibilities}
 ${profile.baseline?.gpa ? `- Current GPA: ${profile.baseline.gpa}` : ""}
 ${profile.baseline?.attendance ? `- Attendance rate: ${profile.baseline.attendance}%` : ""}
-${domainBaselineLines ? `\nDOMAIN-SPECIFIC BASELINE:\n${domainBaselineLines}` : ""}
+${domainBaselineLines ? `\nBASELINE INFO:\n${domainBaselineLines}` : ""}
 
 REQUIREMENTS:
 1. Generate exactly 12 weeks.
 2. Each week MUST have 3–5 actionable steps.
-3. Every action must include a SPECIFIC, REAL resource (website, app, program, or local service).
-4. For each resource, provide:
+3. Every action MUST map to one of the 4 career readiness pillars via the "pillar" field.
+4. Each week should clearly advance at least 1 pillar, with emphasis on the PRIMARY PILLARS this cycle.
+5. Every action must include a SPECIFIC, REAL resource (website, app, program, or local service).
+6. For each resource, provide:
    - The resource name
-   - access_steps: an ARRAY of step-by-step strings on how to access it (e.g. ["Go to khanacademy.org", "Click Courses", "Search Algebra 1"])
-   - use_steps: an ARRAY of step-by-step strings on how to use it THIS week (specific tasks within the resource)
+   - pillar: which career readiness pillar this action advances
+   - access_steps: an ARRAY of step-by-step strings on how to access it
+   - use_steps: an ARRAY of step-by-step strings on how to use it THIS week
    - time_estimate_minutes: a NUMBER of minutes (e.g. 30)
-   - success_metric: a measurable indicator the student completed the action (e.g. "Completed 3 practice problems with 80%+ accuracy")
-5. Every week must have a measurable milestone (not vague).
-6. Prioritize free or low-cost resources.
-7. Keep all language at a grade 7–10 reading level.
-8. Build progressive difficulty — early weeks are lighter.
-9. Account for the student's transportation and time constraints.
-10. Do NOT use generic filler. Every action must be concrete and doable.
-11. ${profile.outcomeStatement ? `All weeks must advance toward the student's outcome goal: "${profile.outcomeStatement}".` : "Weeks should cycle through the student's goals, ensuring all goals get coverage."}
-12. If the student has limited time, keep weekly actions to 3 items max.
-13. Do NOT invent hyper-local organizations. Keep resources general (national websites, apps, well-known programs) unless the student's ZIP area has verified local data.
-${domainLabel ? `14. Each week's focus must map to a sub-goal that builds readiness within the ${domainLabel} pathway at the ${stageLabel} stage.` : ""}
+   - success_metric: a measurable indicator the student completed the action
+7. Every week must have a measurable milestone (not vague).
+8. Prioritize free or low-cost resources.
+9. Keep all language at a grade 7–10 reading level.
+10. Build progressive difficulty — early weeks are lighter.
+11. Account for the student's transportation and time constraints.
+12. Do NOT use generic filler. Every action must be concrete and doable.
+13. ${profile.outcomeStatement ? `All weeks must advance toward the student's outcome goal: "${profile.outcomeStatement}".` : "Weeks should build career readiness across all pillars."}
+14. If the student has limited time, keep weekly actions to 3 items max.
+15. Do NOT invent hyper-local organizations. Keep resources general unless verified.
+16. All actions should be relevant to the career path: ${careerPathName}. The student is exploring or preparing for this career.
 ${(profile.cycleNumber || 1) > 1 ? `
 CYCLE CONTEXT:
-This is Cycle ${profile.cycleNumber} of the student's pathway. Build on what was accomplished in previous cycles — increase difficulty, introduce new resources, and push toward more advanced milestones.
+This is Cycle ${profile.cycleNumber}. Build on what was accomplished in previous cycles — increase difficulty, introduce new resources, and push toward more advanced milestones.
 ${profile.previousCycleSummary ? `\nPREVIOUS CYCLE SUMMARY:\n${profile.previousCycleSummary}` : ""}
 Do NOT repeat actions from earlier cycles. Advance the student further toward their outcome goal.` : ""}`;
 }
@@ -179,7 +201,7 @@ async function callLLM(profile: ProfileInput): Promise<unknown> {
         { role: "system", content: systemPrompt },
         {
           role: "user",
-          content: `Create a personalized 12-week plan for this student. Make every action specific and every resource real and accessible. Each action must include access_steps (array of strings), use_steps (array of strings), time_estimate_minutes (number), and success_metric (string). Use the create_plan tool.`,
+          content: `Create a personalized 12-week career readiness plan for this student pursuing ${profile.careerPathName || "career exploration"}. Each action must include a "pillar" field mapping to one of the 4 readiness pillars. Use the create_plan tool.`,
         },
       ],
       tools: [planToolSchema],
@@ -209,6 +231,7 @@ async function callLLM(profile: ProfileInput): Promise<unknown> {
 interface WeekAction {
   task: string;
   resource: string;
+  pillar: string;
   access_steps: string[];
   use_steps: string[];
   time_estimate_minutes: number;
@@ -228,6 +251,8 @@ function validatePlan(raw: unknown): Week[] {
     throw new Error("INVALID_PLAN: Must have exactly 12 weeks");
   }
 
+  const validPillars = ["Academic Readiness", "Skill Development", "Exposure & Networking", "Proof & Portfolio"];
+
   return obj.weeks.map((w: unknown, i: number) => {
     const week = w as Record<string, unknown>;
     if (!week.focus || typeof week.focus !== "string") throw new Error(`INVALID_PLAN: Week ${i + 1} missing focus`);
@@ -238,25 +263,24 @@ function validatePlan(raw: unknown): Week[] {
       if (!a.task || !a.resource) {
         throw new Error(`INVALID_PLAN: Week ${i + 1}, action ${j + 1} missing task or resource`);
       }
-      // Normalize access_steps: accept string or string[]
-      let accessSteps: string[] = [];
-      if (Array.isArray(a.access_steps)) {
-        accessSteps = a.access_steps.map(String);
-      } else if (typeof a.access_steps === "string") {
-        accessSteps = [a.access_steps];
-      } else if (typeof a.access === "string") {
-        // backward compat: old format had "access" as string
-        accessSteps = [a.access as string];
+
+      // Normalize pillar
+      let pillar = typeof a.pillar === "string" ? a.pillar : "Skill Development";
+      // Fuzzy match
+      if (!validPillars.includes(pillar)) {
+        const lower = pillar.toLowerCase();
+        pillar = validPillars.find(p => lower.includes(p.toLowerCase().split(" ")[0])) || "Skill Development";
       }
 
+      let accessSteps: string[] = [];
+      if (Array.isArray(a.access_steps)) accessSteps = a.access_steps.map(String);
+      else if (typeof a.access_steps === "string") accessSteps = [a.access_steps];
+      else if (typeof a.access === "string") accessSteps = [a.access as string];
+
       let useSteps: string[] = [];
-      if (Array.isArray(a.use_steps)) {
-        useSteps = a.use_steps.map(String);
-      } else if (typeof a.use_steps === "string") {
-        useSteps = [a.use_steps];
-      } else if (typeof a.how_to_use === "string") {
-        useSteps = [a.how_to_use as string];
-      }
+      if (Array.isArray(a.use_steps)) useSteps = a.use_steps.map(String);
+      else if (typeof a.use_steps === "string") useSteps = [a.use_steps];
+      else if (typeof a.how_to_use === "string") useSteps = [a.how_to_use as string];
 
       const timeMinutes = typeof a.time_estimate_minutes === "number"
         ? a.time_estimate_minutes
@@ -271,6 +295,7 @@ function validatePlan(raw: unknown): Week[] {
       return {
         task: String(a.task),
         resource: String(a.resource),
+        pillar,
         access_steps: accessSteps.length > 0 ? accessSteps : ["Visit the resource website"],
         use_steps: useSteps.length > 0 ? useSteps : ["Follow the instructions provided"],
         time_estimate_minutes: timeMinutes,
@@ -299,12 +324,15 @@ async function savePlan(userId: string, title: string, weeks: Week[], profile: P
       user_id: userId,
       title,
       profile_snapshot: profile,
-      pathway_id: profile.pathwayId || null,
+      career_path_id: profile.careerPathId || null,
+      primary_pillar_focus: profile.primaryPillarFocus || ["Academic Readiness", "Exposure & Networking"],
       cycle_number: profile.cycleNumber || 1,
       outcome_statement: profile.outcomeStatement || null,
       target_date: profile.targetDate || null,
       goal_domain: profile.goalDomain || null,
       stage: profile.stage || "foundation",
+      // Legacy compat
+      pathway_id: profile.pathwayId || null,
     })
     .select("id")
     .single();
@@ -356,8 +384,8 @@ serve(async (req) => {
     const weeks = validatePlan(plan);
 
     // Save to DB
-    const goals = profile.goals?.join(" & ") || "Academic Growth";
-    const title = `12-Week Plan: ${goals}`;
+    const careerName = profile.careerPathName || profile.goals?.join(" & ") || "Career Growth";
+    const title = `12-Week Plan: ${careerName}`;
     const planId = await savePlan(userId, title, weeks, profile);
 
     return new Response(
