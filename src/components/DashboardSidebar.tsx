@@ -21,7 +21,7 @@ import {
 
 const navItems = [
   { title: 'My Path', href: '/dashboard', icon: Compass },
-  { title: 'Explore Careers', href: '/explore-careers', icon: Search },
+  { title: 'Explore Careers', href: '/dashboard#explore', icon: Search },
   { title: 'My 12-Week Cycle', href: '/dashboard#cycle', icon: CalendarDays },
   { title: 'Opportunities', href: '/dashboard#opportunities', icon: Trophy },
   { title: 'Practice', href: '/dashboard#practice', icon: Dumbbell },
@@ -54,11 +54,9 @@ export default function DashboardSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => {
-                const isActive = item.href === '/explore-careers'
-                  ? location.pathname === '/explore-careers'
-                  : item.href === '/dashboard'
-                    ? location.pathname === '/dashboard' && (!location.hash || location.hash === '')
-                    : location.pathname === '/dashboard' && location.hash === item.href.replace('/dashboard', '');
+                const isActive = item.href === '/dashboard'
+                  ? location.pathname === '/dashboard' && (!location.hash || location.hash === '')
+                  : location.pathname === '/dashboard' && location.hash === item.href.replace('/dashboard', '');
 
                 return (
                   <SidebarMenuItem key={item.title}>
