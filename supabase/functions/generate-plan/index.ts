@@ -261,7 +261,7 @@ async function callLLM(profile: ProfileInput): Promise<unknown> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
         {
@@ -276,10 +276,11 @@ async function callLLM(profile: ProfileInput): Promise<unknown> {
 
   if (!response.ok) {
     const status = response.status;
+    const errorBody = await response.text();
+    console.error("LLM error:", status, errorBody);
     if (status === 429) throw new Error("RATE_LIMITED");
     if (status === 402) throw new Error("PAYMENT_REQUIRED");
-    console.error("LLM error:", status);
-    throw new Error(`LLM returned ${status}`);
+    throw new Error(`LLM returned ${status}: ${errorBody}`);
   }
 
   const data = await response.json();
