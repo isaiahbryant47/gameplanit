@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Compass,
   Search,
@@ -8,7 +8,6 @@ import {
   Award,
   Heart,
 } from 'lucide-react';
-import { NavLink } from '@/components/NavLink';
 import {
   Sidebar,
   SidebarContent,
@@ -21,20 +20,20 @@ import {
 } from '@/components/ui/sidebar';
 
 const navItems = [
-  { title: 'My Path', hash: '', icon: Compass },
-  { title: 'Explore Careers', hash: '#explore', icon: Search },
-  { title: 'My 12-Week Cycle', hash: '#cycle', icon: CalendarDays },
-  { title: 'Opportunities', hash: '#opportunities', icon: Trophy },
-  { title: 'Practice', hash: '#practice', icon: Dumbbell },
-  { title: 'Certs & Proof', hash: '#certs', icon: Award },
-  { title: 'Support', hash: '#support', icon: Heart },
+  { title: 'My Path', href: '/dashboard', icon: Compass },
+  { title: 'Explore Careers', href: '/explore-careers', icon: Search },
+  { title: 'My 12-Week Cycle', href: '/dashboard#cycle', icon: CalendarDays },
+  { title: 'Opportunities', href: '/dashboard#opportunities', icon: Trophy },
+  { title: 'Practice', href: '/dashboard#practice', icon: Dumbbell },
+  { title: 'Certs & Proof', href: '/dashboard#certs', icon: Award },
+  { title: 'Support', href: '/dashboard#support', icon: Heart },
 ];
 
 export default function DashboardSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
-  const currentHash = location.hash;
+  const navigate = useNavigate();
 
   return (
     <Sidebar
@@ -42,7 +41,6 @@ export default function DashboardSidebar() {
       collapsible="icon"
     >
       <SidebarContent className="pt-4">
-        {/* Brand / logo area */}
         {!collapsed && (
           <div className="px-4 pb-4 border-b border-sidebar-border mb-2">
             <h2 className="text-base font-bold text-sidebar-foreground tracking-tight">
@@ -56,9 +54,11 @@ export default function DashboardSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => {
-                const isActive = item.hash === ''
-                  ? !currentHash || currentHash === ''
-                  : currentHash === item.hash;
+                const isActive = item.href === '/explore-careers'
+                  ? location.pathname === '/explore-careers'
+                  : item.href === '/dashboard'
+                    ? location.pathname === '/dashboard' && (!location.hash || location.hash === '')
+                    : location.pathname === '/dashboard' && location.hash === item.href.replace('/dashboard', '');
 
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -68,7 +68,11 @@ export default function DashboardSidebar() {
                       tooltip={item.title}
                     >
                       <a
-                        href={`/dashboard${item.hash}`}
+                        href={item.href}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigate(item.href);
+                        }}
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                           isActive
                             ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'

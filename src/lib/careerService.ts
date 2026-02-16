@@ -36,6 +36,8 @@ export async function fetchCareerPaths(domainId?: string): Promise<CareerPath[]>
     recommendedEducationNotes: r.recommended_education_notes,
     tags: r.tags,
     isActive: r.is_active,
+    relatedCareerIds: r.related_career_ids || [],
+    nextLevelCareerIds: r.next_level_career_ids || [],
   }));
 }
 

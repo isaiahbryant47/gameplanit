@@ -16,6 +16,8 @@ export interface CareerPath {
   recommendedEducationNotes: string;
   tags: string[];
   isActive: boolean;
+  relatedCareerIds: string[];
+  nextLevelCareerIds: string[];
 }
 
 export interface CareerPillar {

@@ -93,7 +93,9 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          next_level_career_ids: string[]
           recommended_education_notes: string
+          related_career_ids: string[]
           tags: string[]
         }
         Insert: {
@@ -103,7 +105,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          next_level_career_ids?: string[]
           recommended_education_notes?: string
+          related_career_ids?: string[]
           tags?: string[]
         }
         Update: {
@@ -113,7 +117,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          next_level_career_ids?: string[]
           recommended_education_notes?: string
+          related_career_ids?: string[]
           tags?: string[]
         }
         Relationships: [
