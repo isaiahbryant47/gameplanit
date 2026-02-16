@@ -19,12 +19,10 @@ import BalancingBadge from '@/components/BalancingBadge';
 import StudentProfile from '@/components/StudentProfile';
 import KpiSection from '@/components/KpiSection';
 import AdherencePrediction from '@/components/AdherencePrediction';
-import CareerPathMap from '@/components/explore/CareerPathMap';
-import CareerPreviewPanel from '@/components/explore/CareerPreviewPanel';
-import { fetchCareerPillars, fetchCareerDomains, fetchCareerPaths } from '@/lib/careerService';
+import { fetchCareerPillars } from '@/lib/careerService';
 import { evaluateUnlocks, fetchUserUnlocks } from '@/lib/unlockService';
 import { recalculateReadiness, type ReadinessExplanation } from '@/lib/readinessEngine';
-import type { CareerPillar, CareerDomain, CareerPath } from '@/lib/types';
+import type { CareerPillar } from '@/lib/types';
 import { toast } from 'sonner';
 
 
@@ -36,12 +34,6 @@ export default function Dashboard() {
   const [pillars, setPillars] = useState<CareerPillar[]>([]);
   const [readinessData, setReadinessData] = useState<ReadinessExplanation | null>(null);
   const [hasUnlocks, setHasUnlocks] = useState(false);
-  // Career explorer state
-  const [careerDomains, setCareerDomains] = useState<CareerDomain[]>([]);
-  const [allCareerPaths, setAllCareerPaths] = useState<CareerPath[]>([]);
-  const [explorerDomainId, setExplorerDomainId] = useState<string | null>(null);
-  const [explorerPathId, setExplorerPathId] = useState<string | null>(null);
-  const [explorerLoading, setExplorerLoading] = useState(true);
   const [structuredWeeks] = useState<StructuredWeek[]>(() => {
     if (!user) return [];
     try {
@@ -93,14 +85,6 @@ export default function Dashboard() {
     }
   }, [careerPathIdForHook]);
 
-  // Load career explorer data
-  useEffect(() => {
-    Promise.all([fetchCareerDomains(), fetchCareerPaths()]).then(([d, p]) => {
-      setCareerDomains(d.filter(dom => dom.name !== 'General Exploration'));
-      setAllCareerPaths(p.filter(path => path.name !== 'General Exploration'));
-      setExplorerLoading(false);
-    });
-  }, []);
 
   // Check for existing unlocks
   useEffect(() => {
@@ -390,81 +374,6 @@ export default function Dashboard() {
               completionRate={completionRate}
             />
 
-            {/* Career Explorer Section */}
-            {(() => {
-              const domainPaths = explorerDomainId ? allCareerPaths.filter(p => p.domainId === explorerDomainId) : [];
-              const selectedExplorerPath = explorerPathId ? allCareerPaths.find(p => p.id === explorerPathId) : null;
-              const selectedDomain = explorerDomainId ? careerDomains.find(d => d.id === explorerDomainId) : null;
-              const domainEmojis: Record<string, string> = {
-                'Healthcare': '🏥', 'Technology': '💻', 'Business & Entrepreneurship': '💼',
-                'Creative & Media': '🎨', 'Skilled Trades': '🔧', 'Public Service': '🏛️',
-              };
-
-              return (
-                <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-                  <div>
-                    <h3 className="text-sm font-semibold text-card-foreground">Explore Career Paths</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Discover how careers connect and find your direction.</p>
-                  </div>
-
-                  {/* Domain tiles */}
-                  {!explorerLoading && (
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                      {careerDomains.map(d => {
-                        const isActive = explorerDomainId === d.id;
-                        return (
-                          <button
-                            key={d.id}
-                            onClick={() => { setExplorerDomainId(isActive ? null : d.id); setExplorerPathId(null); }}
-                            className={`rounded-lg border p-2.5 text-center transition-all text-xs ${
-                              isActive
-                                ? 'border-primary bg-accent ring-1 ring-primary/20'
-                                : 'border-border hover:border-primary/40'
-                            }`}
-                          >
-                            <span className="text-lg block mb-1">{domainEmojis[d.name] || '📋'}</span>
-                            <span className={`font-semibold leading-tight block ${isActive ? 'text-accent-foreground' : 'text-card-foreground'}`}>
-                              {d.name}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Career Map + Preview */}
-                  {explorerDomainId && domainPaths.length > 0 && (
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-                      <div className="lg:col-span-3">
-                        <CareerPathMap
-                          paths={domainPaths}
-                          allPaths={allCareerPaths}
-                          selectedPathId={explorerPathId}
-                          currentCareerPathId={profile?.careerPathId}
-                          onSelect={setExplorerPathId}
-                          domainName={selectedDomain?.name || ''}
-                        />
-                      </div>
-                      <div className="lg:col-span-2">
-                        {selectedExplorerPath ? (
-                          <CareerPreviewPanel
-                            path={selectedExplorerPath}
-                            allPaths={allCareerPaths}
-                            isCurrentPath={profile?.careerPathId === selectedExplorerPath.id}
-                            onStartPath={() => nav('/onboarding', { state: { careerPathId: selectedExplorerPath.id } })}
-                            onSelectRelated={setExplorerPathId}
-                          />
-                        ) : (
-                          <div className="rounded-xl border border-dashed border-border bg-card/50 p-6 text-center">
-                            <p className="text-xs text-muted-foreground">👆 Click a career to see details</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
 
             {/* What you're balancing */}
             <BalancingBadge profile={profile} />
