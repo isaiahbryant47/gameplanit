@@ -1,10 +1,14 @@
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { storage } from '@/lib/storage';
-import { Plan, Profile } from '@/lib/types';
-import { useMemo, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useMemo, useState, useEffect } from 'react';
 import { Search, Database, BrainCircuit, Users } from 'lucide-react';
 import PartnerAnalytics from '@/components/PartnerAnalytics';
+
+interface PartnerRow {
+  plan: { id: string; title: string; user_id: string };
+  profile: { grade_level: string | null; interests: string[] | null; zip_code: string | null; constraints_json: Record<string, unknown> | null };
+}
 
 export default function Partner() {
   const { user, logout } = useAuth();
@@ -13,20 +17,37 @@ export default function Partner() {
   const [zipPrefix, setZipPrefix] = useState('');
   const [transportation, setTransportation] = useState('');
   const [tab, setTab] = useState<'students' | 'analytics'>('students');
+  const [rows, setRows] = useState<PartnerRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const rows = useMemo(() => storage.allPlans().map((plan) => {
-    const profile = storage.allProfiles().find((p) => p.id === plan.profileId);
-    return profile ? { plan, profile } : null;
-  }).filter(Boolean) as { plan: Plan; profile: Profile }[], []);
+  useEffect(() => {
+    async function fetchData() {
+      const { data: plans } = await supabase.from('plans').select('id, title, user_id');
+      const { data: profiles } = await supabase.from('profiles').select('user_id, grade_level, interests, zip_code, constraints_json');
+
+      if (plans && profiles) {
+        const profileMap = new Map(profiles.map(p => [p.user_id, p]));
+        const mapped = plans
+          .map(plan => {
+            const profile = profileMap.get(plan.user_id);
+            return profile ? { plan, profile } : null;
+          })
+          .filter(Boolean) as PartnerRow[];
+        setRows(mapped);
+      }
+      setLoading(false);
+    }
+    fetchData();
+  }, []);
 
   if (!user) return <Navigate to="/login" />;
   if (user.role !== 'partner_admin') return <Navigate to="/dashboard" />;
 
   const filtered = rows.filter(({ profile }) =>
-    (!grade || profile.gradeLevel === grade) &&
-    (!interest || profile.interests.join(',').toLowerCase().includes(interest.toLowerCase())) &&
-    (!zipPrefix || profile.zipCode.startsWith(zipPrefix)) &&
-    (!transportation || profile.constraints.transportation === transportation)
+    (!grade || profile.grade_level === grade) &&
+    (!interest || (profile.interests || []).join(',').toLowerCase().includes(interest.toLowerCase())) &&
+    (!zipPrefix || (profile.zip_code || '').startsWith(zipPrefix)) &&
+    (!transportation || (profile.constraints_json as Record<string, string> | null)?.transportation === transportation)
   );
 
   return (
@@ -113,12 +134,12 @@ export default function Partner() {
                       filtered.map(({ plan, profile }) => (
                         <tr key={plan.id} className="border-b border-border last:border-0 hover:bg-secondary/30 transition-colors">
                           <td className="px-4 py-3 text-card-foreground font-medium">{plan.title}</td>
-                          <td className="px-4 py-3 text-card-foreground">{profile.gradeLevel}</td>
-                          <td className="px-4 py-3 text-card-foreground">{profile.zipCode.slice(0, 3)}**</td>
-                          <td className="px-4 py-3 text-card-foreground">{profile.interests.join(', ')}</td>
+                          <td className="px-4 py-3 text-card-foreground">{profile.grade_level}</td>
+                          <td className="px-4 py-3 text-card-foreground">{(profile.zip_code || '').slice(0, 3)}**</td>
+                          <td className="px-4 py-3 text-card-foreground">{(profile.interests || []).join(', ')}</td>
                           <td className="px-4 py-3">
                             <span className="inline-flex rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground">
-                              {profile.constraints.transportation}
+                              {(profile.constraints_json as Record<string, string> | null)?.transportation || '—'}
                             </span>
                           </td>
                         </tr>
