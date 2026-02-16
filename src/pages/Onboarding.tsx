@@ -98,7 +98,11 @@ export default function Onboarding() {
       const valid = schema.safeParse({ email: f.email, password: f.password });
       if (!valid.success) return setError(valid.error.issues[0].message);
     }
-    const finalZip = f.zipCode.trim() || '191';
+    const finalZip = f.zipCode.trim() || '00000';
+    if (!/^\d{5}$/.test(finalZip)) {
+      setError('Please enter a valid 5-digit ZIP code');
+      return;
+    }
 
     setSubmitting(true);
     setError('');
