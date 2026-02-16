@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Partner from './pages/Partner';
 import Login from './pages/Login';
 import ResourceAdmin from './pages/ResourceAdmin';
+import ExploreCareers from './pages/ExploreCareers';
 import PageNav from './components/PageNav';
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/recommendations" element={<Recommendations />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/explore-careers" element={<ExploreCareers />} />
           <Route path="/partner" element={<Partner />} />
           <Route path="/partner/resources" element={<ResourceAdmin />} />
         </Routes>
