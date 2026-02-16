@@ -137,14 +137,113 @@ export default function Dashboard() {
 
   if (!profile || !plan) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="text-center space-y-4">
-          <p className="text-lg text-muted-foreground">No plan yet.</p>
-          <button onClick={() => nav('/onboarding')} className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground">
-            Start Onboarding
-          </button>
+      <SidebarProvider>
+        <div className="min-h-screen flex w-full bg-background">
+          <DashboardSidebar />
+          <main className="flex-1 min-w-0">
+            <div className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
+              <div className="flex items-center justify-between px-6 py-3">
+                <div className="flex items-center gap-3">
+                  <SidebarTrigger className="text-muted-foreground" />
+                  <h1 className="text-sm font-medium text-muted-foreground hidden sm:block">Student Dashboard</h1>
+                </div>
+              </div>
+            </div>
+            <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
+              {/* Path Header skeleton */}
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4 animate-pulse">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-28 bg-muted rounded" />
+                  <div className="h-4 w-4 bg-muted rounded" />
+                  <div className="h-5 w-40 bg-muted rounded" />
+                </div>
+                <div className="h-3 w-36 bg-muted rounded" />
+                <div className="flex gap-3 mt-3">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="h-9 flex-1 bg-muted rounded-lg" />
+                  ))}
+                </div>
+              </div>
+
+              {/* Why This Matters skeleton */}
+              <div className="rounded-xl border border-border bg-card p-5 space-y-3 animate-pulse">
+                <div className="h-4 w-32 bg-muted rounded" />
+                <div className="h-3 w-full bg-muted rounded" />
+                <div className="h-3 w-3/4 bg-muted rounded" />
+              </div>
+
+              {/* Balancing badge skeleton */}
+              <div className="rounded-xl border border-border bg-card p-4 animate-pulse">
+                <div className="flex gap-3">
+                  <div className="h-7 w-24 bg-muted rounded-full" />
+                  <div className="h-7 w-28 bg-muted rounded-full" />
+                </div>
+              </div>
+
+              {/* This Week skeleton */}
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4 animate-pulse">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 bg-muted rounded-full" />
+                  <div className="h-5 w-24 bg-muted rounded" />
+                </div>
+                <div className="h-3 w-48 bg-muted rounded" />
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="rounded-lg border border-border p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="h-5 w-5 bg-muted rounded" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-3/4 bg-muted rounded" />
+                        <div className="h-3 w-1/2 bg-muted rounded" />
+                      </div>
+                    </div>
+                    <div className="ml-8 space-y-2">
+                      <div className="h-16 w-full bg-muted/60 rounded" />
+                      <div className="h-16 w-full bg-muted/60 rounded" />
+                    </div>
+                    <div className="ml-8 flex gap-3">
+                      <div className="h-5 w-16 bg-muted rounded" />
+                      <div className="h-5 w-28 bg-muted rounded-full" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Recommended Moves skeleton */}
+              <div className="space-y-3 animate-pulse">
+                <div className="h-5 w-44 bg-muted rounded" />
+                <div className="grid grid-cols-3 gap-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="rounded-xl border border-border bg-card p-4 space-y-3">
+                      <div className="flex justify-between">
+                        <div className="h-5 w-16 bg-muted rounded-full" />
+                        <div className="h-4 w-14 bg-muted rounded" />
+                      </div>
+                      <div className="h-4 w-full bg-muted rounded" />
+                      <div className="h-3 w-2/3 bg-muted rounded" />
+                      <div className="flex gap-2">
+                        <div className="h-3 w-14 bg-muted rounded" />
+                        <div className="h-3 w-24 bg-muted rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Generating message */}
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 text-center space-y-3">
+                <div className="flex justify-center">
+                  <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+                </div>
+                <p className="text-sm font-medium text-card-foreground">Building your personalized plan…</p>
+                <p className="text-xs text-muted-foreground">This usually takes about 30 seconds. We're crafting actions tailored to your goals.</p>
+                <button onClick={() => nav('/onboarding')} className="text-xs text-primary hover:underline mt-2">
+                  Or start fresh with onboarding →
+                </button>
+              </div>
+            </div>
+          </main>
         </div>
-      </div>
+      </SidebarProvider>
     );
   }
 
