@@ -52,7 +52,7 @@ export async function generateLLMPlan(
         gradeLevel: profile.gradeLevel,
         interests: profile.interests,
         goals: profile.goals,
-        zipCode: profile.zipCode,
+        zipCode: profile.zipCode && /^\d{5}$/.test(profile.zipCode) ? profile.zipCode : '00000',
         constraints: profile.constraints,
         baseline: profile.baseline,
         // Career-first fields
