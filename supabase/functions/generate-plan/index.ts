@@ -95,7 +95,6 @@ const weekActionSchema = {
     success_metric: { type: "string" as const, description: "A measurable indicator that this action was completed successfully" },
   },
   required: ["task", "resource", "pillar", "access_steps", "use_steps", "time_estimate_minutes", "success_metric"],
-  additionalProperties: false,
 };
 
 const weekSchema = {
@@ -106,13 +105,10 @@ const weekSchema = {
     actions: {
       type: "array" as const,
       items: weekActionSchema,
-      minItems: 3,
-      maxItems: 5,
     },
     milestone: { type: "string" as const, description: "A measurable milestone for the week" },
   },
   required: ["week", "focus", "actions", "milestone"],
-  additionalProperties: false,
 };
 
 const planToolSchema = {
@@ -126,12 +122,9 @@ const planToolSchema = {
         weeks: {
           type: "array" as const,
           items: weekSchema,
-          minItems: 12,
-          maxItems: 12,
         },
       },
       required: ["weeks"],
-      additionalProperties: false,
     },
   },
 };
@@ -322,7 +315,7 @@ function validatePlan(raw: unknown): Week[] {
     const week = w as Record<string, unknown>;
     if (!week.focus || typeof week.focus !== "string") throw new Error(`INVALID_PLAN: Week ${i + 1} missing focus`);
     if (!week.milestone || typeof week.milestone !== "string") throw new Error(`INVALID_PLAN: Week ${i + 1} missing milestone`);
-    if (!Array.isArray(week.actions) || week.actions.length < 3) throw new Error(`INVALID_PLAN: Week ${i + 1} needs 3+ actions`);
+    if (!Array.isArray(week.actions) || week.actions.length < 1) throw new Error(`INVALID_PLAN: Week ${i + 1} needs at least 1 action`);
 
     const actions = (week.actions as Record<string, unknown>[]).map((a, j) => {
       if (!a.task || !a.resource) {
