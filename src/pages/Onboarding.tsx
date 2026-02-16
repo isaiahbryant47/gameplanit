@@ -74,7 +74,7 @@ const targetDateOptions = [
 export default function Onboarding() {
   const { register, user } = useAuth();
   const nav = useNavigate();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(user ? 2 : 1);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [f, setF] = useState({
@@ -277,7 +277,7 @@ export default function Onboarding() {
                 className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors flex items-center justify-center gap-2"
                 onClick={async () => {
                   const { error: err } = await lovable.auth.signInWithOAuth('google', {
-                    redirect_uri: window.location.origin,
+                    redirect_uri: window.location.origin + '/onboarding',
                   });
                   if (err) setError(err.message || 'Google sign-in failed');
                 }}
