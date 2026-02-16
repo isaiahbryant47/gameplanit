@@ -73,7 +73,7 @@ export default function Login() {
           className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors flex items-center justify-center gap-2"
           onClick={async () => {
             const { error } = await lovable.auth.signInWithOAuth('google', {
-              redirect_uri: window.location.origin,
+              redirect_uri: window.location.origin + '/login',
             });
             if (error) setError(error.message || 'Google sign-in failed');
           }}
