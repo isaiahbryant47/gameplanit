@@ -126,6 +126,15 @@ export default function Onboarding() {
       return setError('Unable to create account. Please try again.');
     }
 
+    // Check if user already has a profile + plan (prevent duplicate onboarding)
+    const existingProfile = storage.allProfiles().find(p => p.userId === currentUserId);
+    const existingPlan = storage.allPlans().find(p => p.userId === currentUserId);
+    if (existingProfile && existingPlan) {
+      setSubmitting(false);
+      nav('/dashboard');
+      return;
+    }
+
     // Save profile to Supabase
     const constraintsJson = {
       timePerWeekHours: Number(f.timePerWeekHours),
@@ -138,7 +147,7 @@ export default function Onboarding() {
       attendance: f.attendance ? Number(f.attendance) : undefined,
     };
 
-    await supabase.from('profiles').upsert({
+    const { error: profileError } = await supabase.from('profiles').upsert({
       user_id: currentUserId,
       type: f.type,
       grade_level: f.gradeLevel,
@@ -153,6 +162,13 @@ export default function Onboarding() {
       target_date: f.targetDate || null,
       domain_baseline: Object.keys(f.domainBaseline).length > 0 ? f.domainBaseline : {},
     }, { onConflict: 'user_id' });
+
+    if (profileError) {
+      console.error('Profile save error:', profileError);
+      toast.error('Failed to save your profile. Please try again.');
+      setSubmitting(false);
+      return;
+    }
 
     // Also save to localStorage for backward compat
     const profile: Profile = {

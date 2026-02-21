@@ -19,9 +19,25 @@ export default function Partner() {
   const [tab, setTab] = useState<'students' | 'analytics'>('students');
   const [rows, setRows] = useState<PartnerRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
+    if (!user || user.role !== 'partner_admin') return;
+
     async function fetchData() {
+      // Verify role server-side before fetching sensitive data
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user!.id)
+        .maybeSingle();
+
+      if (roleError || roleData?.role !== 'partner_admin') {
+        setAccessDenied(true);
+        setLoading(false);
+        return;
+      }
+
       const { data: plans } = await supabase.from('plans').select('id, title, user_id');
       const { data: profiles } = await supabase.from('profiles').select('user_id, grade_level, interests, zip_code, constraints_json');
 
@@ -38,10 +54,10 @@ export default function Partner() {
       setLoading(false);
     }
     fetchData();
-  }, []);
+  }, [user]);
 
   if (!user) return <Navigate to="/login" />;
-  if (user.role !== 'partner_admin') return <Navigate to="/dashboard" />;
+  if (user.role !== 'partner_admin' || accessDenied) return <Navigate to="/dashboard" />;
 
   const filtered = rows.filter(({ profile }) =>
     (!grade || profile.grade_level === grade) &&
