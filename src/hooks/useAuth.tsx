@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -13,7 +13,7 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ error?: string }>;
+  login: (email: string, password: string) => Promise<{ error?: string; user?: AuthUser }>;
   register: (email: string, password: string) => Promise<{ error?: string; user?: AuthUser }>;
   logout: () => Promise<void>;
 }
@@ -28,15 +28,19 @@ const AuthContext = createContext<AuthContextType>({
 
 async function fetchRole(userId: string): Promise<AppRole> {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
       .limit(1)
       .maybeSingle();
+    if (error) {
+      console.error('fetchRole query error:', error);
+      return 'student';
+    }
     return (data?.role as AppRole) || 'student';
   } catch (e) {
-    console.error('fetchRole error:', e);
+    console.error('fetchRole exception:', e);
     return 'student';
   }
 }
@@ -53,52 +57,65 @@ async function buildAuthUser(supaUser: SupabaseUser): Promise<AuthUser> {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const initialSessionHandled = useRef(false);
 
+  // On mount: check existing session
   useEffect(() => {
-    // Set up listener BEFORE getSession per Supabase best practices
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        // Skip the INITIAL_SESSION event — handled by getSession below
-        if (!initialSessionHandled.current && event === 'INITIAL_SESSION') return;
+    let cancelled = false;
+
+    const initSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
 
         if (session?.user) {
+          const authUser = await buildAuthUser(session.user);
+          if (!cancelled) setUser(authUser);
+        }
+      } catch (e) {
+        console.error('initSession error:', e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void initSession();
+
+    // Listen for sign-out and token refresh events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (cancelled) return;
+
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setLoading(false);
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          // Re-fetch role on token refresh in case it changed
           try {
             const authUser = await buildAuthUser(session.user);
-            setUser(authUser);
-          } catch (e) {
-            console.error('buildAuthUser error:', e);
-            setUser({ id: session.user.id, email: session.user.email || '', role: 'student' });
+            if (!cancelled) setUser(authUser);
+          } catch {
+            // keep existing user state
           }
-        } else {
-          setUser(null);
         }
-        setLoading(false);
       }
     );
 
-    // Then check current session (single source for initial load)
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        try {
-          const authUser = await buildAuthUser(session.user);
-          setUser(authUser);
-        } catch (e) {
-          console.error('buildAuthUser error:', e);
-          setUser({ id: session.user.id, email: session.user.email || '', role: 'student' });
-        }
-      }
-      initialSessionHandled.current = true;
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
-    return {};
+
+    if (data.user) {
+      const authUser = await buildAuthUser(data.user);
+      setUser(authUser);
+      return { user: authUser };
+    }
+    return { error: 'Login succeeded but no user was returned.' };
   }, []);
 
   const register = useCallback(async (email: string, password: string) => {
@@ -108,8 +125,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       options: { emailRedirectTo: window.location.origin },
     });
     if (error) return { error: error.message };
+
     if (data.user) {
       const authUser = await buildAuthUser(data.user);
+      setUser(authUser);
       return { user: authUser };
     }
     return {};
