@@ -1,6 +1,18 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Pathway, Opportunity, GoalDomain } from "./types";
 
+type UnlockRule = { type: string; min_rate?: number; min_cycle?: number };
+
+function isUnlockRule(value: unknown): value is UnlockRule {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+
+  if (typeof candidate.type !== "string") return false;
+  if (candidate.min_rate !== undefined && typeof candidate.min_rate !== "number") return false;
+  if (candidate.min_cycle !== undefined && typeof candidate.min_cycle !== "number") return false;
+  return true;
+}
+
 export async function fetchPathways(): Promise<Pathway[]> {
   const { data, error } = await supabase
     .from("pathways")
@@ -9,7 +21,7 @@ export async function fetchPathways(): Promise<Pathway[]> {
     .order("domain");
 
   if (error || !data) return [];
-  return data.map((r: any) => ({
+  return data.map((r) => ({
     id: r.id,
     domain: r.domain as GoalDomain,
     title: r.title,
@@ -21,7 +33,7 @@ export async function fetchPathways(): Promise<Pathway[]> {
 }
 
 export async function fetchOpportunitiesForPathway(pathwayId: string): Promise<
-  { opportunity: Opportunity; unlockRule: { type: string; min_rate?: number; min_cycle?: number } }[]
+  { opportunity: Opportunity; unlockRule: UnlockRule }[]
 > {
   const { data, error } = await supabase
     .from("pathway_opportunities")
@@ -29,7 +41,10 @@ export async function fetchOpportunitiesForPathway(pathwayId: string): Promise<
     .eq("pathway_id", pathwayId);
 
   if (error || !data) return [];
-  return data.map((r: any) => ({
+  return data.flatMap((r) => {
+    if (!r.opportunities || !isUnlockRule(r.unlock_rule_json)) return [];
+
+    return [{
     opportunity: {
       id: r.opportunities.id,
       domain: r.opportunities.domain as GoalDomain,
@@ -39,8 +54,9 @@ export async function fetchOpportunitiesForPathway(pathwayId: string): Promise<
       next_step_cta_label: r.opportunities.next_step_cta_label,
       next_step_url: r.opportunities.next_step_url,
     },
-    unlockRule: r.unlock_rule_json as any,
-  }));
+    unlockRule: r.unlock_rule_json,
+  }];
+  });
 }
 
 export async function createUserPathway(userId: string, pathwayId: string): Promise<string | null> {
@@ -55,7 +71,7 @@ export async function createUserPathway(userId: string, pathwayId: string): Prom
 }
 
 export function checkOpportunityUnlock(
-  rule: { type: string; min_rate?: number; min_cycle?: number },
+  rule: UnlockRule,
   completionRate: number,
   currentCycle: number
 ): boolean {

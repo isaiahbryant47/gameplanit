@@ -22,8 +22,19 @@ const emptyProgress: ProgressData = { completedActions: {}, resourcesEngaged: []
 export const storage = {
   seed() {
     if (read<User>(KEYS.users).length) return;
-    const admin: User = { id: crypto.randomUUID(), email: 'partner@gameplanit.org', password: 'admin1234', role: 'partner_admin', createdAt: new Date().toISOString() };
-    const student: User = { id: crypto.randomUUID(), email: 'student@gameplanit.org', password: 'student1234', role: 'student', createdAt: new Date().toISOString() };
+
+    // Legacy localStorage fallback users (Supabase auth is the primary path).
+    // We intentionally avoid shipping known plaintext default passwords.
+    const makeSeedUser = (email: string, role: User['role']): User => ({
+      id: crypto.randomUUID(),
+      email,
+      password: crypto.randomUUID(),
+      role,
+      createdAt: new Date().toISOString(),
+    });
+
+    const admin = makeSeedUser('partner@gameplanit.org', 'partner_admin');
+    const student = makeSeedUser('student@gameplanit.org', 'student');
     write(KEYS.users, [admin, student]);
   },
   allUsers: () => read<User>(KEYS.users),
