@@ -4,7 +4,7 @@ import {
   CheckCircle2, ArrowRight, GraduationCap, Heart, Building2,
   Lock, Mail, CalendarDays, ListChecks, TrendingUp
 } from 'lucide-react';
-import logo from '@/assets/logo.png';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -100,7 +100,7 @@ export default function Index() {
       <header className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-accent/20 to-background" />
         <div className="relative max-w-5xl mx-auto px-6 pt-28 pb-20 text-center">
-          <img src={logo} alt="GameplanIT logo" className="w-20 h-20 mx-auto mb-6" />
+          
           <div className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-accent-foreground mb-6">
             <Sparkles className="w-4 h-4" />
             For grades 7–12 students &amp; their caregivers
@@ -373,7 +373,7 @@ export default function Index() {
         <div className="max-w-5xl mx-auto px-6 py-10">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-2">
-              <img src={logo} alt="GameplanIT" className="w-8 h-8" />
+              
               <span className="font-semibold text-foreground">GameplanIT</span>
             </div>
             <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
