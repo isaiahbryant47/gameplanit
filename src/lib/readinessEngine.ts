@@ -224,11 +224,11 @@ export async function recalculateReadiness(ctx: ScoringContext): Promise<Readine
   const toUpdate = pillarResults.filter(pr => existingProgress[pr.pillarId]);
   const toInsert = pillarResults.filter(pr => !existingProgress[pr.pillarId]);
 
-  const pillarWritePromises: Promise<unknown>[] = [];
+  const pillarWritePromises: Array<PromiseLike<unknown>> = [];
 
   if (toUpdate.length > 0) {
-    pillarWritePromises.push(
-      ...toUpdate.map(pr =>
+    toUpdate.forEach(pr => {
+      pillarWritePromises.push(
         supabase
           .from("user_pillar_progress")
           .update({
@@ -239,8 +239,8 @@ export async function recalculateReadiness(ctx: ScoringContext): Promise<Readine
             last_updated: now,
           })
           .eq("id", existingProgress[pr.pillarId].id)
-      )
-    );
+      );
+    });
   }
 
   if (toInsert.length > 0) {

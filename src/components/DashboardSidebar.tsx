@@ -22,11 +22,11 @@ import {
 const navItems = [
   { title: 'My Path', href: '/explore-careers', icon: Compass },
   { title: 'Dashboard', href: '/dashboard', icon: Search },
-  { title: 'My 12-Week Cycle', href: '/dashboard#cycle', icon: CalendarDays },
-  { title: 'Opportunities', href: '/dashboard#opportunities', icon: Trophy },
-  { title: 'Practice', href: '/dashboard#practice', icon: Dumbbell },
-  { title: 'Certs & Proof', href: '/dashboard#certs', icon: Award },
-  { title: 'Support', href: '/dashboard#support', icon: Heart },
+  { title: 'My 12-Week Cycle', href: '/cycle', icon: CalendarDays },
+  { title: 'Opportunities', href: '/opportunities', icon: Trophy },
+  { title: 'Practice', href: '/practice', icon: Dumbbell },
+  { title: 'Certs & Proof', href: '/certs', icon: Award },
+  { title: 'Support', href: '/support', icon: Heart },
 ];
 
 export default function DashboardSidebar() {
@@ -54,9 +54,7 @@ export default function DashboardSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => {
-                const isActive = item.href.includes('#')
-                  ? location.pathname === '/dashboard' && location.hash === item.href.replace('/dashboard', '')
-                  : location.pathname === item.href;
+                const isActive = location.pathname === item.href;
 
                 return (
                   <SidebarMenuItem key={item.title}>
