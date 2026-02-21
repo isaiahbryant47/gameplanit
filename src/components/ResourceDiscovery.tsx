@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Sparkles, ExternalLink, Plus, Loader2, Tag } from 'lucide-react';
 import type { Profile } from '@/lib/types';
-import type { TablesInsert } from '@/integrations/supabase/types';
+import { Constants, type Enums, type TablesInsert } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 
 interface DiscoveredResource {
@@ -14,6 +14,9 @@ interface DiscoveredResource {
   why: string;
 }
 
+type ResourceCategory = Enums<'resource_category'>;
+type TransportMode = Enums<'transport_mode'>;
+
 const categoryLabels: Record<string, string> = {
   online_learning: 'Online Learning',
   local_opportunity: 'Local Opportunity',
@@ -22,6 +25,22 @@ const categoryLabels: Record<string, string> = {
   community_event: 'Community Event',
   career_program: 'Career Program',
 };
+
+const allowedCategories = new Set<string>(Constants.public.Enums.resource_category);
+const allowedTransportModes = new Set<string>(Constants.public.Enums.transport_mode);
+
+function normalizeCategory(category: string): ResourceCategory {
+  return allowedCategories.has(category) ? (category as ResourceCategory) : 'online_learning';
+}
+
+function normalizeTransportMode(transportation: string): TransportMode {
+  return allowedTransportModes.has(transportation) ? (transportation as TransportMode) : 'virtual';
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return 'Something went wrong';
+}
 
 export default function ResourceDiscovery({ profile }: { profile: Profile }) {
   const [resources, setResources] = useState<DiscoveredResource[]>([]);
@@ -47,9 +66,9 @@ export default function ResourceDiscovery({ profile }: { profile: Profile }) {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setResources(data?.resources || []);
-    } catch (e: any) {
-      console.error('Discovery error:', e);
-      toast.error(e.message || 'Failed to discover resources');
+    } catch (error: unknown) {
+      console.error('Discovery error:', error);
+      toast.error(getErrorMessage(error) || 'Failed to discover resources');
     } finally {
       setLoading(false);
     }
@@ -63,17 +82,17 @@ export default function ResourceDiscovery({ profile }: { profile: Profile }) {
         description: resource.description,
         url: resource.url || null,
         is_free: resource.is_free,
-        category: resource.category as any,
+        category: normalizeCategory(resource.category),
         tags: profile.interests,
         grade_levels: [profile.gradeLevel],
         zip_prefixes: [profile.zipCode.slice(0, 3)],
-        transportation: profile.constraints.transportation === 'mixed' ? 'mixed' : profile.constraints.transportation as any,
+        transportation: normalizeTransportMode(profile.constraints.transportation),
       };
       const { error } = await supabase.from('resources').insert(row);
       if (error) throw error;
       toast.success(`"${resource.title}" saved to resource library`);
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to save resource');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error) || 'Failed to save resource');
     } finally {
       setSaving(null);
     }
