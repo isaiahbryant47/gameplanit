@@ -84,6 +84,18 @@ export default function Login() {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+        {import.meta.env.DEV && (
+          <button
+            type="button"
+            className="w-full rounded-lg border border-border bg-muted px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-accent transition-colors"
+            onClick={() => {
+              setEmail('student@gameplanit.org');
+              setPassword('student1234');
+            }}
+          >
+            ⚡ Fill test credentials
+          </button>
+        )}
         <p className="text-center text-sm text-muted-foreground">
           <Link to="/forgot-password" className="text-primary font-medium hover:underline">Forgot password?</Link>
         </p>
