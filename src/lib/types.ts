@@ -30,7 +30,6 @@ export interface CareerPillar {
 export interface User {
   id: string;
   email: string;
-  password: string;
   role: Role;
   createdAt: string;
 }
