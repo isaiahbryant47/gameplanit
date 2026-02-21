@@ -104,15 +104,19 @@ export function getWeekCompletionRate(
 }
 
 /**
- * Count consecutive weeks with >= 60% completion, most recent first.
+ * Count consecutive weeks with >= 60% completion, working backwards
+ * from the current week (not the last week in the plan).
  */
 export function getCompletionStreak(
   weeks: { id: string; actions: string[] }[],
-  completedActions: Record<string, boolean>
+  completedActions: Record<string, boolean>,
+  currentWeekIndex?: number
 ): number {
   let streak = 0;
-  // Iterate from most recent completed week backwards
-  for (let i = weeks.length - 1; i >= 0; i--) {
+  const startIndex = currentWeekIndex !== undefined
+    ? Math.min(currentWeekIndex, weeks.length - 1)
+    : weeks.length - 1;
+  for (let i = startIndex; i >= 0; i--) {
     const rate = getWeekCompletionRate(weeks[i].id, weeks[i].actions.length, completedActions);
     if (rate >= 0.6) streak++;
     else break;

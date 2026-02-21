@@ -15,9 +15,9 @@ interface Props {
 export default function ThisWeekModule({ plan, structuredWeeks, userId, progress, onProgressChange }: Props) {
   const [expanded, setExpanded] = useState(true);
 
-  // Current week based on plan creation date
-  const daysSinceStart = Math.floor((Date.now() - new Date(plan.createdAt).getTime()) / (1000 * 60 * 60 * 24));
-  const currentWeekNum = Math.min(12, Math.max(1, Math.ceil(daysSinceStart / 7)));
+  // Current week based on plan creation date (handle day-0 and clock skew)
+  const daysSinceStart = Math.max(0, Math.floor((Date.now() - new Date(plan.createdAt).getTime()) / (1000 * 60 * 60 * 24)));
+  const currentWeekNum = Math.min(12, Math.max(1, Math.ceil((daysSinceStart + 1) / 7)));
 
   const currentPlanWeek = plan.weeks.find(w => w.weekNumber === currentWeekNum);
   const currentStructuredWeek = structuredWeeks.find(w => w.week === currentWeekNum);

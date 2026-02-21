@@ -219,58 +219,75 @@ export async function recalculateReadiness(ctx: ScoringContext): Promise<Readine
   const strongestPillar = sorted[0]?.name || null;
   const weakestPillar = sorted[sorted.length - 1]?.name || null;
 
-  // 7. Persist pillar progress (upsert)
-  for (const pr of pillarResults) {
-    const existing = existingProgress[pr.pillarId];
-    if (existing) {
-      await supabase
+  // 7. Persist pillar progress (batched upsert)
+  const now = new Date().toISOString();
+  const toUpdate = pillarResults.filter(pr => existingProgress[pr.pillarId]);
+  const toInsert = pillarResults.filter(pr => !existingProgress[pr.pillarId]);
+
+  const pillarWritePromises: Promise<unknown>[] = [];
+
+  if (toUpdate.length > 0) {
+    pillarWritePromises.push(
+      ...toUpdate.map(pr =>
+        supabase
+          .from("user_pillar_progress")
+          .update({
+            progress_score: pr.score,
+            milestone_contribution: pr.milestone,
+            cycle_contribution: pr.cycle,
+            opportunity_contribution: pr.opportunity,
+            last_updated: now,
+          })
+          .eq("id", existingProgress[pr.pillarId].id)
+      )
+    );
+  }
+
+  if (toInsert.length > 0) {
+    pillarWritePromises.push(
+      supabase
         .from("user_pillar_progress")
-        .update({
-          progress_score: pr.score,
-          milestone_contribution: pr.milestone,
-          cycle_contribution: pr.cycle,
-          opportunity_contribution: pr.opportunity,
-          last_updated: new Date().toISOString(),
-        })
-        .eq("id", existing.id);
-    } else {
-      await supabase
-        .from("user_pillar_progress")
-        .insert({
+        .insert(toInsert.map(pr => ({
           user_id: ctx.userId,
           career_pillar_id: pr.pillarId,
           progress_score: pr.score,
           milestone_contribution: pr.milestone,
           cycle_contribution: pr.cycle,
           opportunity_contribution: pr.opportunity,
-        });
-    }
+        })))
+    );
   }
 
-  // 8. Persist overall readiness (upsert)
+  // 8. Persist overall readiness (upsert) — batched with pillar writes
   if (oldReadiness) {
-    await supabase
-      .from("user_readiness")
-      .update({
-        overall_score: overallScore,
-        previous_score: previousScore,
-        strongest_pillar: strongestPillar,
-        weakest_pillar: weakestPillar,
-        last_updated: new Date().toISOString(),
-      })
-      .eq("id", oldReadiness.id);
+    pillarWritePromises.push(
+      supabase
+        .from("user_readiness")
+        .update({
+          overall_score: overallScore,
+          previous_score: previousScore,
+          strongest_pillar: strongestPillar,
+          weakest_pillar: weakestPillar,
+          last_updated: now,
+        })
+        .eq("id", oldReadiness.id)
+    );
   } else {
-    await supabase
-      .from("user_readiness")
-      .insert({
-        user_id: ctx.userId,
-        career_path_id: ctx.careerPathId,
-        overall_score: overallScore,
-        previous_score: previousScore,
-        strongest_pillar: strongestPillar,
-        weakest_pillar: weakestPillar,
-      });
+    pillarWritePromises.push(
+      supabase
+        .from("user_readiness")
+        .insert({
+          user_id: ctx.userId,
+          career_path_id: ctx.careerPathId,
+          overall_score: overallScore,
+          previous_score: previousScore,
+          strongest_pillar: strongestPillar,
+          weakest_pillar: weakestPillar,
+        })
+    );
   }
+
+  await Promise.all(pillarWritePromises);
 
   // 9. Build explanation
   const trend: 'up' | 'down' | 'stable' =

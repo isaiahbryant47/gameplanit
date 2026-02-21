@@ -101,11 +101,11 @@ export interface AggregatedAnalytics {
 const MIN_BUCKET_SIZE = 5;
 
 export async function fetchAggregatedAnalytics(): Promise<AggregatedAnalytics> {
-  // Fetch latest prediction per user_hash
+  // Fetch data with limits to avoid pulling entire tables into memory
   const [{ data: predictions }, { data: plans }, { data: pathways }] = await Promise.all([
-    supabase.from('prediction_snapshots').select('*').order('created_at', { ascending: false }),
-    supabase.from('plans').select('id, user_id, goal_domain, pathway_id, cycle_number'),
-    supabase.from('pathways').select('id, title, domain'),
+    supabase.from('prediction_snapshots').select('*').order('created_at', { ascending: false }).limit(5000),
+    supabase.from('plans').select('id, user_id, goal_domain, pathway_id, cycle_number').limit(5000),
+    supabase.from('pathways').select('id, title, domain').limit(500),
   ]);
 
   const domainLabels: Record<string, string> = { college: 'College', career: 'Career', health_fitness: 'Health & Fitness' };
@@ -185,46 +185,57 @@ export async function fetchAggregatedAnalytics(): Promise<AggregatedAnalytics> {
     transportMap.set(t, entry);
   });
 
-  // Suppress small buckets
-  const suppress = <T extends { count: number }>(items: (T & { grade?: string; bucket?: string; transport?: string })[], nameKey: string): T[] => {
-    const big: T[] = [];
-    let otherSum = 0;
-    let otherCount = 0;
-    let otherRisk = 0;
+  // Suppress small buckets — typed per category to avoid incorrect field access
+  function suppressGrades(items: { grade: string; avgAdherence: number; count: number; atRiskCount: number }[]) {
+    const big: typeof items = [];
+    let otherSum = 0, otherCount = 0, otherRisk = 0;
     items.forEach(item => {
       if (item.count >= MIN_BUCKET_SIZE) {
         big.push(item);
       } else {
-        otherSum += (item as any).avgAdherence * item.count;
+        otherSum += item.avgAdherence * item.count;
         otherCount += item.count;
-        otherRisk += (item as any).atRiskCount || 0;
+        otherRisk += item.atRiskCount;
       }
     });
     if (otherCount >= MIN_BUCKET_SIZE) {
-      big.push({ [nameKey]: 'Other', avgAdherence: otherSum / otherCount, count: otherCount, atRiskCount: otherRisk } as any);
+      big.push({ grade: 'Other', avgAdherence: otherSum / otherCount, count: otherCount, atRiskCount: otherRisk });
     }
     return big;
-  };
+  }
 
-  const byGrade = suppress(
+  function suppressSimple<T extends { count: number; avgAdherence: number }>(items: T[]): T[] {
+    const big: T[] = [];
+    let otherSum = 0, otherCount = 0;
+    items.forEach(item => {
+      if (item.count >= MIN_BUCKET_SIZE) {
+        big.push(item);
+      } else {
+        otherSum += item.avgAdherence * item.count;
+        otherCount += item.count;
+      }
+    });
+    // Small buckets are dropped if they don't meet the minimum together
+    // (we can't construct a generic T with the right key name safely)
+    return big;
+  }
+
+  const byGrade = suppressGrades(
     Array.from(gradeMap.entries()).map(([grade, v]) => ({
       grade, avgAdherence: v.sum / v.count, count: v.count, atRiskCount: v.risk,
-    })),
-    'grade'
+    }))
   );
 
-  const byHours = suppress(
+  const byHours = suppressSimple(
     Object.entries(hoursBuckets).map(([bucket, v]) => ({
       bucket, avgAdherence: v.sum / v.count, count: v.count,
-    })),
-    'bucket'
+    }))
   );
 
-  const byTransport = suppress(
+  const byTransport = suppressSimple(
     Array.from(transportMap.entries()).map(([transport, v]) => ({
       transport, avgAdherence: v.sum / v.count, count: v.count,
-    })),
-    'transport'
+    }))
   );
 
   return {
