@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -11,12 +10,11 @@ export default function Login() {
   const { login, user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect once authenticated
-  useEffect(() => {
-    if (user) {
-      navigate(user.role === 'partner_admin' ? '/partner' : '/dashboard');
-    }
-  }, [user, navigate]);
+  // If already logged in, redirect immediately
+  if (user) {
+    navigate(user.role === 'partner_admin' ? '/partner' : '/dashboard', { replace: true });
+    return null;
+  }
 
   const handleLogin = async () => {
     setError('');
@@ -37,8 +35,10 @@ export default function Login() {
       } else {
         setError(result.error);
       }
+    } else if (result.user) {
+      // Navigate directly using the returned user
+      navigate(result.user.role === 'partner_admin' ? '/partner' : '/dashboard', { replace: true });
     }
-    // Navigation happens via auth state change + redirect logic in pages
   };
 
   return (
