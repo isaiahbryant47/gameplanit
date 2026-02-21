@@ -42,8 +42,9 @@ export default function Dashboard() {
     } catch { return []; }
   });
   const [progress, setProgress] = useState(() => {
-    const p = user ? storage.getProgress(user.id) : { completedActions: {}, resourcesEngaged: [] as string[], academicLog: [] as { date: string; gpa?: number; attendance?: number }[], completedGoals: {} as Record<string, string> };
+    const p = user ? storage.getProgress(user.id) : { completedActions: {}, resourcesEngaged: [] as string[], academicLog: [] as { date: string; gpa?: number; attendance?: number }[], completedGoals: {} as Record<string, string>, weeklyCheckins: {} as Record<number, { lowTime: boolean; transportationIssue: boolean; unexpectedResponsibilities: boolean; motivationLow: boolean; updatedAt: string }> };
     if (!p.completedGoals) p.completedGoals = {};
+    if (!p.weeklyCheckins) p.weeklyCheckins = {};
     return p;
   });
 
@@ -315,7 +316,7 @@ export default function Dashboard() {
       };
       storage.savePlans([...storage.allPlans().filter((p) => p.userId !== user.id), newPlan]);
       localStorage.setItem(`gp_structured_weeks_${user.id}`, JSON.stringify(result.weeks));
-      storage.saveProgress(user.id, { completedActions: {}, resourcesEngaged: progress.resourcesEngaged, academicLog: progress.academicLog, completedGoals: {} });
+      storage.saveProgress(user.id, { completedActions: {}, resourcesEngaged: progress.resourcesEngaged, academicLog: progress.academicLog, completedGoals: {}, weeklyCheckins: {} });
       toast.success(`Cycle ${cycleNumber + 1} is ready!`);
       nav(0);
     } catch (err) {
