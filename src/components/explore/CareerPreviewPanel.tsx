@@ -5,6 +5,12 @@ interface Props {
   path: CareerPath;
   allPaths: CareerPath[];
   isCurrentPath: boolean;
+  fitScore?: number;
+  isSaved?: boolean;
+  canAddToCompare?: boolean;
+  onAddToCompare?: (id: string) => void;
+  onToggleSave?: (id: string) => void;
+  onPreviewPlan?: (id: string) => void;
   onStartPath: () => void;
   onSelectRelated: (id: string) => void;
 }
@@ -16,7 +22,19 @@ const stages = [
   { label: 'Apply / Unlock', icon: Rocket, desc: 'Apply for opportunities and unlock next-level experiences.' },
 ];
 
-export default function CareerPreviewPanel({ path, allPaths, isCurrentPath, onStartPath, onSelectRelated }: Props) {
+export default function CareerPreviewPanel({
+  path,
+  allPaths,
+  isCurrentPath,
+  fitScore,
+  isSaved,
+  canAddToCompare,
+  onAddToCompare,
+  onToggleSave,
+  onPreviewPlan,
+  onStartPath,
+  onSelectRelated,
+}: Props) {
   const relatedPaths = path.relatedCareerIds
     .map(id => allPaths.find(p => p.id === id))
     .filter(Boolean) as CareerPath[];
@@ -47,6 +65,14 @@ export default function CareerPreviewPanel({ path, allPaths, isCurrentPath, onSt
       </div>
 
       <div className="p-5 space-y-5">
+        {typeof fitScore === 'number' && (
+          <section className="rounded-lg border border-border bg-secondary/40 p-3">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Strategic Fit Score</h4>
+            <p className="text-sm font-semibold text-card-foreground">{fitScore}/100</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Based on your current interests and constraints.</p>
+          </section>
+        )}
+
         {/* What You Do */}
         <section>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
@@ -144,6 +170,28 @@ export default function CareerPreviewPanel({ path, allPaths, isCurrentPath, onSt
             </div>
           </section>
         )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button
+            onClick={() => onToggleSave?.(path.id)}
+            className="rounded-lg border border-border bg-background py-2 px-3 text-xs font-semibold text-card-foreground hover:bg-secondary transition-colors"
+          >
+            {isSaved ? 'Saved ✓' : 'Save for Later'}
+          </button>
+          <button
+            onClick={() => onAddToCompare?.(path.id)}
+            disabled={!canAddToCompare}
+            className="rounded-lg border border-border bg-background py-2 px-3 text-xs font-semibold text-card-foreground hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Add to Compare
+          </button>
+          <button
+            onClick={() => onPreviewPlan?.(path.id)}
+            className="rounded-lg border border-border bg-background py-2 px-3 text-xs font-semibold text-card-foreground hover:bg-secondary transition-colors"
+          >
+            Preview Plan
+          </button>
+        </div>
 
         {/* Start CTA */}
         <button
