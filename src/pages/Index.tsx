@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BookOpen, Shield, Users, Clock, Target, Sparkles,
@@ -93,7 +94,38 @@ const sampleWeek = {
   milestone: 'Week 3 milestone: Identify 2 STEM paths that interest you.',
 };
 
+const audienceFeed = {
+  student: {
+    label: 'Student feed',
+    items: [
+      'Because you said Algebra + 2 hours/week: 3 short actions for this week.',
+      'Recommended next: no-cost STEM workshop available this Saturday.',
+      'Continue where you left off: 1 action remaining (about 20 minutes).',
+    ],
+  },
+  caregiver: {
+    label: 'Caregiver feed',
+    items: [
+      'This week at a glance: 3 tasks your student can finish at home.',
+      'Suggested check-in prompt: “What did you learn from the career quiz?”',
+      'Upcoming milestone: confirm one mentor conversation by Friday.',
+    ],
+  },
+  partner: {
+    label: 'Partner feed',
+    items: [
+      'Priority cohort trend: 9th grade attendance barriers rose this week.',
+      'Recommended intervention: transportation-friendly resource bundle.',
+      'Impact snapshot: 68% of active users completed at least 2 weekly actions.',
+    ],
+  },
+} as const;
+
 export default function Index() {
+  const [selectedAudience, setSelectedAudience] = useState<keyof typeof audienceFeed>('student');
+  const [showFullPreview, setShowFullPreview] = useState(false);
+  const selectedFeed = useMemo(() => audienceFeed[selectedAudience], [selectedAudience]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* ─── HERO ─── */}
@@ -141,8 +173,61 @@ export default function Index() {
           <p className="mt-4 text-sm text-muted-foreground">
             Takes ~3 minutes. Free to start. No credit card required.
           </p>
+
+          <div className="mt-6 flex flex-wrap justify-center gap-2 text-xs">
+            {['Personalized in under 3 minutes', 'No credit card required', 'Built for mobile + low bandwidth'].map((chip) => (
+              <span key={chip} className="rounded-full border border-border bg-card/70 px-3 py-1.5 text-muted-foreground">
+                {chip}
+              </span>
+            ))}
+          </div>
         </div>
       </header>
+
+      {/* ─── PERSONALIZED FEED PREVIEW ─── */}
+      <section className="py-14 bg-background">
+        <div className="max-w-4xl mx-auto px-6">
+          <h2 className="text-2xl font-bold text-foreground text-center mb-2">See your personalized feed</h2>
+          <p className="text-sm text-muted-foreground text-center mb-8">
+            Inspired by streaming-style personalization: pick your role and preview what your next-best actions look like.
+          </p>
+
+          <div className="flex flex-wrap justify-center gap-2 mb-6">
+            {[
+              ['student', 'Student'],
+              ['caregiver', 'Caregiver'],
+              ['partner', 'Partner'],
+            ].map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSelectedAudience(key as keyof typeof audienceFeed)}
+                className={`rounded-full px-4 py-2 text-sm border transition-colors ${
+                  selectedAudience === key
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <Card className="border-border shadow-sm">
+            <CardContent className="pt-6">
+              <h3 className="font-semibold text-foreground mb-4">{selectedFeed.label}</h3>
+              <ul className="space-y-3">
+                {selectedFeed.items.map((item) => (
+                  <li key={item} className="text-sm text-muted-foreground flex gap-2">
+                    <CheckCircle2 className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
 
       {/* ─── HOW IT WORKS ─── */}
       <section className="py-20 bg-secondary/30">
@@ -259,7 +344,7 @@ export default function Index() {
                     <ListChecks className="w-3.5 h-3.5" /> Actions
                   </h4>
                   <ul className="space-y-2">
-                    {sampleWeek.actions.map((a, i) => (
+                    {(showFullPreview ? sampleWeek.actions : sampleWeek.actions.slice(0, 2)).map((a, i) => (
                       <li key={i} className="flex gap-2 text-sm text-foreground">
                         <span className="w-5 h-5 rounded border border-border flex items-center justify-center shrink-0 mt-0.5 text-xs text-muted-foreground">{i + 1}</span>
                         {a}
@@ -276,7 +361,7 @@ export default function Index() {
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">How to access</p>
                       <ol className="list-decimal list-inside space-y-0.5">
-                        {sampleWeek.featuredResource.access.map((s, i) => (
+                        {(showFullPreview ? sampleWeek.featuredResource.access : sampleWeek.featuredResource.access.slice(0, 2)).map((s, i) => (
                           <li key={i} className="text-sm text-muted-foreground">{s}</li>
                         ))}
                       </ol>
@@ -307,6 +392,13 @@ export default function Index() {
                     </h4>
                     <p className="text-sm text-foreground">{sampleWeek.milestone}</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowFullPreview(prev => !prev)}
+                    className="mt-4 text-sm font-medium text-primary hover:underline"
+                  >
+                    {showFullPreview ? 'Show concise preview' : 'Show full week details'}
+                  </button>
                 </div>
               </div>
             </CardContent>
@@ -377,9 +469,9 @@ export default function Index() {
               <span className="font-semibold text-foreground">GameplanIT</span>
             </div>
             <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-              <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
-              <a href="#" className="hover:text-foreground transition-colors">Terms</a>
-              <a href="#" className="hover:text-foreground transition-colors">Contact</a>
+              <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+              <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+              <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>
               <Link to="/partner" className="hover:text-foreground transition-colors flex items-center gap-1">
                 <Mail className="w-3.5 h-3.5" /> Partner Inquiry
               </Link>
