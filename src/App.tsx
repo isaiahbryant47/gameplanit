@@ -15,13 +15,14 @@ import OpportunitiesPage from './pages/OpportunitiesPage';
 import PracticePage from './pages/PracticePage';
 import CertsProofPage from './pages/CertsProofPage';
 import SupportPage from './pages/SupportPage';
-import PageNav from './components/PageNav';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import Contact from './pages/Contact';
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <PageNav />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
@@ -35,6 +36,9 @@ export default function App() {
           <Route path="/practice" element={<PracticePage />} />
           <Route path="/certs" element={<CertsProofPage />} />
           <Route path="/support" element={<SupportPage />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="/explore-careers" element={<ExploreCareers />} />
           <Route path="/partner" element={<Partner />} />
           <Route path="/partner/resources" element={<ResourceAdmin />} />
