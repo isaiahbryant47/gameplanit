@@ -1,5 +1,5 @@
 import type { CareerPath } from '@/lib/types';
-import { Compass, Wrench, FolderOpen, Rocket, ArrowRight, Star, TrendingUp, Shuffle } from 'lucide-react';
+import { Compass, Wrench, FolderOpen, Rocket, ArrowRight, Star, TrendingUp, Shuffle, Tag } from 'lucide-react';
 
 interface Props {
   path: CareerPath;
@@ -15,6 +15,22 @@ const stages = [
   { label: 'Build Proof', icon: FolderOpen, desc: 'Create portfolio pieces, certifications, or real-world projects.' },
   { label: 'Apply / Unlock', icon: Rocket, desc: 'Apply for opportunities and unlock next-level experiences.' },
 ];
+
+function generateWhyItMatters(path: CareerPath): string {
+  const hasNextLevel = path.nextLevelCareerIds.length > 0;
+  const hasRelated = path.relatedCareerIds.length > 0;
+
+  if (hasNextLevel && hasRelated) {
+    return `${path.name} opens doors to advanced roles and connects to related fields. The skills you build here are transferable and valued across industries.`;
+  }
+  if (hasNextLevel) {
+    return `${path.name} is a strong foundation that leads to more advanced career opportunities. Each step builds toward higher-level positions.`;
+  }
+  if (hasRelated) {
+    return `${path.name} connects to multiple related careers, giving you flexibility to pivot or specialize as you discover what fits you best.`;
+  }
+  return `${path.name} builds real-world skills that employers value. Every step you take creates momentum toward meaningful work.`;
+}
 
 export default function CareerPreviewPanel({ path, allPaths, isCurrentPath, onStartPath, onSelectRelated }: Props) {
   const relatedPaths = path.relatedCareerIds
@@ -44,6 +60,20 @@ export default function CareerPreviewPanel({ path, allPaths, isCurrentPath, onSt
             )}
           </div>
         </div>
+        {/* Tags */}
+        {path.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {path.tags.map(tag => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-background/60 rounded-full px-2 py-0.5"
+              >
+                <Tag className="w-2.5 h-2.5" />
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="p-5 space-y-5">
@@ -55,13 +85,13 @@ export default function CareerPreviewPanel({ path, allPaths, isCurrentPath, onSt
           <p className="text-sm text-card-foreground leading-relaxed">{path.description}</p>
         </section>
 
-        {/* Why It Matters */}
+        {/* Why It Matters — dynamic per career */}
         <section>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
             Why It Matters
           </h4>
           <p className="text-sm text-card-foreground leading-relaxed">
-            This career helps you make an impact while building skills that are in demand. Every step you take builds toward real opportunities.
+            {generateWhyItMatters(path)}
           </p>
         </section>
 
@@ -71,7 +101,9 @@ export default function CareerPreviewPanel({ path, allPaths, isCurrentPath, onSt
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
               Education Path Options
             </h4>
-            <p className="text-sm text-card-foreground">📚 {path.recommendedEducationNotes}</p>
+            <p className="text-sm text-card-foreground leading-relaxed">
+              {path.recommendedEducationNotes}
+            </p>
           </section>
         )}
 

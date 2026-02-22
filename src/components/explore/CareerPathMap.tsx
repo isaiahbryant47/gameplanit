@@ -324,6 +324,20 @@ function CareerNode({
         </div>
       </div>
 
+      {/* Tag chips */}
+      {path.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {path.tags.slice(0, variant === 'selected' ? 3 : 2).map(tag => (
+            <span
+              key={tag}
+              className="text-[9px] font-medium text-muted-foreground bg-secondary rounded-full px-1.5 py-0.5"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
       {variant !== 'selected' && (
         <div className="flex items-center gap-1 mt-2 text-[10px] text-primary">
           <span>Explore</span>
