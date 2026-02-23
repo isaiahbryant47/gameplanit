@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { storage } from '@/lib/storage';
+import { profileExists, planExists } from '@/lib/services';
 import { Profile, Transportation, CareerDomain, CareerPath } from '@/lib/types';
 import { generateLLMPlan } from '@/lib/llmPlanService';
 import type { Plan } from '@/lib/types';
@@ -127,9 +127,11 @@ export default function Onboarding() {
     }
 
     // Check if user already has a profile + plan (prevent duplicate onboarding)
-    const existingProfile = storage.allProfiles().find(p => p.userId === currentUserId);
-    const existingPlan = storage.allPlans().find(p => p.userId === currentUserId);
-    if (existingProfile && existingPlan) {
+    const [hasProfile, hasPlan] = await Promise.all([
+      profileExists(currentUserId),
+      planExists(currentUserId),
+    ]);
+    if (hasProfile && hasPlan) {
       setSubmitting(false);
       nav('/dashboard');
       return;
@@ -170,7 +172,7 @@ export default function Onboarding() {
       return;
     }
 
-    // Also save to localStorage for backward compat
+    // Build local profile object for plan generation
     const profile: Profile = {
       id: crypto.randomUUID(), userId: currentUserId, type: f.type, gradeLevel: f.gradeLevel,
       schoolName: f.schoolName || undefined, zipCode: finalZip,
@@ -185,35 +187,11 @@ export default function Onboarding() {
       targetDate: f.targetDate || undefined,
       domainBaseline: Object.keys(f.domainBaseline).length > 0 ? f.domainBaseline : undefined,
     };
-    storage.saveProfiles([...storage.allProfiles().filter(p => p.userId !== currentUserId), profile]);
 
-    // Generate plan
+    // Generate plan (saves to Supabase via generateLLMPlan)
     toast.info('Building your personalized plan with AI...');
     try {
-      const result = await generateLLMPlan(profile, currentUserId);
-      const localWeeks = result.weeks.map((w) => ({
-        id: crypto.randomUUID(),
-        planId: result.planId,
-        weekNumber: w.week,
-        focus: w.focus,
-        actions: w.actions.map(a => a.task),
-        resources: w.actions.map(a => a.resource),
-        milestones: [w.milestone],
-      }));
-      const planObj: Plan = {
-        id: result.planId,
-        userId: currentUserId,
-        profileId: profile.id,
-        title: `12-Week Plan: ${profile.careerPathName || profile.goals.join(' & ')}`,
-        createdAt: new Date().toISOString(),
-        weeks: localWeeks,
-        careerPathId: profile.careerPathId,
-        cycleNumber: 1,
-        outcomeStatement: profile.outcomeStatement,
-        targetDate: profile.targetDate,
-      };
-      storage.savePlans([...storage.allPlans().filter(p => p.userId !== currentUserId), planObj]);
-      localStorage.setItem(`gp_structured_weeks_${currentUserId}`, JSON.stringify(result.weeks));
+      await generateLLMPlan(profile, currentUserId);
       toast.success('Your personalized plan is ready!');
     } catch (err) {
       console.error('Plan generation failed:', err);
