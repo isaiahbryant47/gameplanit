@@ -609,6 +609,47 @@ export type Database = {
         }
         Relationships: []
       }
+      student_evidence: {
+        Row: {
+          created_at: string
+          description: string | null
+          evidence_type: string
+          file_path: string
+          id: string
+          pillar_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          evidence_type?: string
+          file_path: string
+          id?: string
+          pillar_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          evidence_type?: string
+          file_path?: string
+          id?: string
+          pillar_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_evidence_pillar_id_fkey"
+            columns: ["pillar_id"]
+            isOneToOne: false
+            referencedRelation: "career_pillars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_career_unlocks: {
         Row: {
           accepted: boolean
