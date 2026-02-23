@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { storage } from '@/lib/storage';
+import { loadProfile, loadPlan, loadProgress, saveProgress, type ProgressData } from '@/lib/services';
 import { generateLLMPlan, fetchUserPlan, type StructuredWeek, type StructuredAction } from '@/lib/llmPlanService';
 import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
 import {
@@ -26,104 +26,6 @@ import type { CareerPillar, Profile, Plan } from '@/lib/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-/** Load profile from Supabase, falling back to localStorage */
-async function loadProfile(userId: string): Promise<Profile | undefined> {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (!error && data) {
-      const constraints = (data.constraints_json as Record<string, unknown>) || {};
-      const baseline = (data.baseline_json as Record<string, unknown>) || {};
-      const profile: Profile = {
-        id: data.id,
-        userId: data.user_id,
-        type: (data.type as 'student' | 'caregiver') || 'student',
-        gradeLevel: data.grade_level || '9',
-        schoolName: data.school_name || undefined,
-        zipCode: data.zip_code || '00000',
-        interests: (data.interests as string[]) || [],
-        constraints: {
-          timePerWeekHours: Number(constraints.timePerWeekHours) || 4,
-          budgetPerMonth: Number(constraints.budgetPerMonth) || 0,
-          transportation: (constraints.transportation as Profile['constraints']['transportation']) || 'public',
-          responsibilities: String(constraints.responsibilities || ''),
-        },
-        goals: (data.goals as string[]) || [],
-        baseline: { gpa: baseline.gpa ? Number(baseline.gpa) : undefined, attendance: baseline.attendance ? Number(baseline.attendance) : undefined },
-        careerPathId: data.career_path_id || undefined,
-        careerDomainName: undefined,
-        careerPathName: undefined,
-        outcomeStatement: data.outcome_statement || undefined,
-        targetDate: data.target_date || undefined,
-        domainBaseline: (data.domain_baseline as Record<string, string>) || undefined,
-      };
-      // Sync to localStorage as cache
-      storage.saveProfiles([...storage.allProfiles().filter(p => p.userId !== userId), profile]);
-      return profile;
-    }
-  } catch (e) {
-    console.error('Failed to load profile from Supabase:', e);
-  }
-  // Fallback to localStorage
-  return storage.allProfiles().find(p => p.userId === userId);
-}
-
-/** Load plan from Supabase, falling back to localStorage */
-async function loadPlan(userId: string): Promise<{ plan: Plan | undefined; structuredWeeks: StructuredWeek[] }> {
-  try {
-    const supabasePlan = await fetchUserPlan(userId);
-    if (supabasePlan && supabasePlan.weeks.length > 0) {
-      const localWeeks = supabasePlan.weeks.map(w => ({
-        id: crypto.randomUUID(),
-        planId: supabasePlan.planId,
-        weekNumber: w.week,
-        focus: w.focus,
-        actions: w.actions.map(a => a.task),
-        resources: w.actions.map(a => a.resource),
-        milestones: [w.milestone],
-      }));
-      const plan: Plan = {
-        id: supabasePlan.planId,
-        userId,
-        profileId: '',
-        title: supabasePlan.title,
-        createdAt: supabasePlan.createdAt,
-        weeks: localWeeks,
-        cycleNumber: 1,
-      };
-      // Check for existing localStorage plan with more metadata
-      const existingLocal = storage.allPlans().find(p => p.userId === userId);
-      if (existingLocal) {
-        plan.profileId = existingLocal.profileId;
-        plan.careerPathId = existingLocal.careerPathId;
-        plan.cycleNumber = existingLocal.cycleNumber;
-        plan.outcomeStatement = existingLocal.outcomeStatement;
-        plan.targetDate = existingLocal.targetDate;
-        plan.primaryPillarFocus = existingLocal.primaryPillarFocus;
-        // Use localStorage week IDs for progress compatibility
-        if (existingLocal.weeks.length === localWeeks.length) {
-          plan.weeks = existingLocal.weeks;
-        }
-      }
-      return { plan, structuredWeeks: supabasePlan.weeks };
-    }
-  } catch (e) {
-    console.error('Failed to load plan from Supabase:', e);
-  }
-  // Fallback to localStorage
-  const plan = storage.allPlans().find(p => p.userId === userId);
-  let structuredWeeks: StructuredWeek[] = [];
-  try {
-    const raw = localStorage.getItem(`gp_structured_weeks_${userId}`);
-    structuredWeeks = raw ? JSON.parse(raw) : [];
-  } catch { /* empty */ }
-  return { plan, structuredWeeks };
-}
-
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
@@ -133,33 +35,34 @@ export default function Dashboard() {
   const [hasUnlocks, setHasUnlocks] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Supabase-first data loading with localStorage fallback
   const [profile, setProfile] = useState<Profile | undefined>(undefined);
   const [plan, setPlan] = useState<Plan | undefined>(undefined);
   const [structuredWeeks, setStructuredWeeks] = useState<StructuredWeek[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [progress, setProgress] = useState<ProgressData>({ completedActions: {}, resourcesEngaged: [], academicLog: [], completedGoals: {} });
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     setDataLoading(true);
 
-    Promise.all([loadProfile(user.id), loadPlan(user.id)]).then(([prof, planData]) => {
+    Promise.all([loadProfile(user.id), loadPlan(user.id)]).then(async ([prof, planData]) => {
       if (cancelled) return;
       setProfile(prof);
       setPlan(planData.plan);
       setStructuredWeeks(planData.structuredWeeks);
-      setDataLoading(false);
+
+      // Load progress from Supabase
+      const prog = await loadProgress(user.id, planData.plan?.id);
+      if (!cancelled) {
+        if (!prog.completedGoals) prog.completedGoals = {};
+        setProgress(prog);
+        setDataLoading(false);
+      }
     });
 
     return () => { cancelled = true; };
   }, [user?.id, refreshKey]);
-
-  const [progress, setProgress] = useState(() => {
-    const p = user ? storage.getProgress(user.id) : { completedActions: {}, resourcesEngaged: [] as string[], academicLog: [] as { date: string; gpa?: number; attendance?: number }[], completedGoals: {} as Record<string, string> };
-    if (!p.completedGoals) p.completedGoals = {};
-    return p;
-  });
 
   const totalActions = plan?.weeks.reduce((sum, w) => sum + w.actions.length, 0) || 0;
   const completedCount = plan?.weeks.reduce((sum, w) =>
@@ -186,7 +89,6 @@ export default function Dashboard() {
   const engagedPillarsKey = engagedPillars.join(',');
   const primaryPillarFocus = plan?.primaryPillarFocus || ['Academic Readiness', 'Exposure & Networking'];
 
-  // Current week — use Math.max(1, ...) to handle day-0 and negative clock skew
   const daysSinceStart = plan ? Math.max(0, Math.floor((Date.now() - new Date(plan.createdAt).getTime()) / (1000 * 60 * 60 * 24))) : 0;
   const currentWeekNum = Math.min(12, Math.max(1, Math.ceil((daysSinceStart + 1) / 7)));
 
@@ -196,14 +98,12 @@ export default function Dashboard() {
     }
   }, [careerPathIdForHook]);
 
-  // Check for existing unlocks
   useEffect(() => {
     if (user?.id) {
       fetchUserUnlocks(user.id).then(u => setHasUnlocks(u.length > 0));
     }
   }, [user?.id]);
 
-  // Debounced effect for DB mutations (evaluateUnlocks + recalculateReadiness)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
 
@@ -215,7 +115,6 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user || !careerPathIdForHook) return;
 
-    // Clear any pending debounced call
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
     debounceTimerRef.current = setTimeout(() => {
@@ -262,25 +161,20 @@ export default function Dashboard() {
       }).then(data => {
         if (mountedRef.current) setReadinessData(data);
       });
-    }, 1500); // 1.5s debounce
+    }, 1500);
 
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
   }, [user?.id, careerPathIdForHook, cycleNumber, milestoneRateInt, engagedPillarsKey]);
 
-  // State-based refresh instead of nav(0)
   const refreshDashboard = useCallback(() => {
     setRefreshKey(k => k + 1);
-    // Also reload progress from localStorage
-    if (user) {
-      const p = storage.getProgress(user.id);
-      if (!p.completedGoals) p.completedGoals = {};
-      setProgress(p);
-    }
-  }, [user]);
+  }, []);
 
-  // Auth guard handled by RequireAuth wrapper
+  const handleProgressChange = useCallback((updated: ProgressData) => {
+    setProgress(updated);
+  }, []);
 
   if (dataLoading || !profile || !plan) {
     return (
@@ -297,7 +191,6 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
-              {/* Path Header skeleton */}
               <div className="rounded-xl border border-border bg-card p-5 space-y-4 animate-pulse">
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-28 bg-muted rounded" />
@@ -312,14 +205,12 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Why This Matters skeleton */}
               <div className="rounded-xl border border-border bg-card p-5 space-y-3 animate-pulse">
                 <div className="h-4 w-32 bg-muted rounded" />
                 <div className="h-3 w-full bg-muted rounded" />
                 <div className="h-3 w-3/4 bg-muted rounded" />
               </div>
 
-              {/* Balancing badge skeleton */}
               <div className="rounded-xl border border-border bg-card p-4 animate-pulse">
                 <div className="flex gap-3">
                   <div className="h-7 w-24 bg-muted rounded-full" />
@@ -327,7 +218,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* This Week skeleton */}
               <div className="rounded-xl border border-border bg-card p-5 space-y-4 animate-pulse">
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 bg-muted rounded-full" />
@@ -355,7 +245,6 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              {/* Recommended Moves skeleton */}
               <div className="space-y-3 animate-pulse">
                 <div className="h-5 w-44 bg-muted rounded" />
                 <div className="grid grid-cols-3 gap-4">
@@ -376,7 +265,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Generating message */}
               {!dataLoading && (
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 text-center space-y-3">
                   <div className="flex justify-center">
@@ -403,7 +291,7 @@ export default function Dashboard() {
       toast.info('Regenerating your plan with AI...');
       const result = await generateLLMPlan(profile, user.id);
       const localWeeks = result.weeks.map((w) => ({
-        id: crypto.randomUUID(),
+        id: `${result.planId}-w${w.week}`,
         planId: result.planId,
         weekNumber: w.week,
         focus: w.focus,
@@ -412,8 +300,8 @@ export default function Dashboard() {
         milestones: [w.milestone],
       }));
       const updated = { ...plan, id: result.planId, createdAt: new Date().toISOString(), weeks: localWeeks };
-      storage.savePlans([...storage.allPlans().filter((p) => p.userId !== user.id), updated]);
-      localStorage.setItem(`gp_structured_weeks_${user.id}`, JSON.stringify(result.weeks));
+      setPlan(updated);
+      setStructuredWeeks(result.weeks);
       toast.success('Plan regenerated!');
       refreshDashboard();
     } catch (err) {
@@ -421,7 +309,7 @@ export default function Dashboard() {
       toast.error('AI unavailable — regenerating from template.');
       const weeks = await generatePlanWeeksWithResources(profile, plan.id);
       const updated = { ...plan, createdAt: new Date().toISOString(), weeks };
-      storage.savePlans([...storage.allPlans().filter((p) => p.userId !== user.id), updated]);
+      setPlan(updated);
       refreshDashboard();
     }
   };
@@ -438,7 +326,7 @@ export default function Dashboard() {
         primaryPillarFocus: primaryPillarFocus,
       });
       const localWeeks = result.weeks.map((w) => ({
-        id: crypto.randomUUID(),
+        id: `${result.planId}-w${w.week}`,
         planId: result.planId,
         weekNumber: w.week,
         focus: w.focus,
@@ -446,7 +334,7 @@ export default function Dashboard() {
         resources: w.actions.map(a => `${a.resource}`),
         milestones: [w.milestone],
       }));
-      const newPlan = {
+      const newPlan: Plan = {
         id: result.planId,
         userId: user.id,
         profileId: profile.id,
@@ -459,11 +347,23 @@ export default function Dashboard() {
         targetDate: profile.targetDate,
         primaryPillarFocus: primaryPillarFocus,
       };
-      storage.savePlans([...storage.allPlans().filter((p) => p.userId !== user.id), newPlan]);
-      localStorage.setItem(`gp_structured_weeks_${user.id}`, JSON.stringify(result.weeks));
-      storage.saveProgress(user.id, { completedActions: {}, resourcesEngaged: progress.resourcesEngaged, academicLog: progress.academicLog, completedGoals: {} });
+      setPlan(newPlan);
+      setStructuredWeeks(result.weeks);
+
+      // Reset progress for new cycle
+      const freshProgress = await saveProgress(user.id, result.planId, {
+        completedActions: {},
+        resourcesEngaged: progress.resourcesEngaged,
+        academicLog: progress.academicLog,
+        completedGoals: {},
+      }).then(() => ({
+        completedActions: {},
+        resourcesEngaged: progress.resourcesEngaged,
+        academicLog: progress.academicLog,
+        completedGoals: {},
+      }));
+      setProgress(freshProgress);
       toast.success(`Cycle ${cycleNumber + 1} is ready!`);
-      refreshDashboard();
     } catch (err) {
       console.error('Cycle generation failed:', err);
       toast.error('Failed to generate next cycle. Please try again.');
@@ -476,7 +376,6 @@ export default function Dashboard() {
         <DashboardSidebar />
 
         <main className="flex-1 min-w-0">
-          {/* Top bar */}
           <div className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
             <div className="flex items-center justify-between px-6 py-3">
               <div className="flex items-center gap-3">
@@ -508,9 +407,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Main Content */}
           <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
-            {/* C + D: Path Header + Why This Matters (first thing students see) */}
             <DashboardPathHeader
               profile={profile}
               plan={plan}
@@ -520,11 +417,8 @@ export default function Dashboard() {
               completionRate={completionRate}
             />
 
-
-            {/* What you're balancing */}
             <BalancingBadge profile={profile} />
 
-            {/* Student Profile (collapsible) */}
             {showProfile && (
               <StudentProfile
                 profile={profile}
@@ -533,25 +427,21 @@ export default function Dashboard() {
               />
             )}
 
-            {/* A: This Week (highest priority) */}
             <ThisWeekModule
               plan={plan}
               structuredWeeks={structuredWeeks}
               userId={user.id}
               progress={progress}
-              onProgressChange={setProgress}
+              onProgressChange={handleProgressChange}
             />
 
-            {/* B: Recommended Next Moves */}
             <RecommendedMoves
               structuredWeeks={structuredWeeks}
               currentWeek={currentWeekNum}
             />
 
-            {/* C: Readiness Snapshot */}
             <ReadinessSnapshot readinessData={readinessData} />
 
-            {/* D: Doors Opening / Unlocked Opportunities */}
             <DoorsOpening
               userId={user.id}
               careerPathId={careerPathIdForHook}
@@ -561,7 +451,6 @@ export default function Dashboard() {
               hasUnlocks={hasUnlocks}
             />
 
-            {/* Predictive Insights */}
             <AdherencePrediction
               plan={plan}
               profile={profile}
@@ -570,10 +459,8 @@ export default function Dashboard() {
               onPlanAdapted={refreshDashboard}
             />
 
-            {/* KPIs */}
-            <KpiSection plan={plan} profile={profile} userId={user.id} />
+            <KpiSection plan={plan} profile={profile} userId={user.id} progress={progress} onProgressChange={handleProgressChange} />
 
-            {/* Next Cycle CTA */}
             {completionRate >= 0.8 && (
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 flex items-center justify-between">
                 <div>

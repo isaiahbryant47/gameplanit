@@ -1,10 +1,12 @@
-import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { storage } from '@/lib/storage';
+import { loadProfile, loadPlan, loadProgress } from '@/lib/services';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Dumbbell, BookOpen, Wrench, Users, FolderOpen, CheckCircle2, Clock } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { StructuredWeek, StructuredAction } from '@/lib/llmPlanService';
+import { loadStructuredWeeks } from '@/lib/services/planService';
+import type { Profile, Plan } from '@/lib/types';
+import type { ProgressData } from '@/lib/services/progressService';
 
 const pillarConfig: Record<string, { icon: typeof BookOpen; color: string }> = {
   'Academic Readiness': { icon: BookOpen, color: 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30' },
@@ -16,16 +18,25 @@ const pillarConfig: Record<string, { icon: typeof BookOpen; color: string }> = {
 export default function PracticePage() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<string>('all');
+  const [plan, setPlan] = useState<Plan | undefined>();
+  const [progress, setProgress] = useState<ProgressData>({ completedActions: {}, resourcesEngaged: [], academicLog: [], completedGoals: {} });
+  const [structuredWeeks, setStructuredWeeks] = useState<StructuredWeek[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const plan = user ? storage.allPlans().find(p => p.userId === user.id) : undefined;
-  const progress = user ? storage.getProgress(user.id) : { completedActions: {} as Record<string, boolean>, resourcesEngaged: [] as string[], academicLog: [] as any[], completedGoals: {} as Record<string, string> };
-
-  const structuredWeeks: StructuredWeek[] = useMemo(() => {
-    if (!user) return [];
-    try {
-      const raw = localStorage.getItem(`gp_structured_weeks_${user.id}`);
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    loadPlan(user.id).then(async (planData) => {
+      if (cancelled) return;
+      setPlan(planData.plan);
+      setStructuredWeeks(planData.structuredWeeks);
+      const prog = await loadProgress(user.id, planData.plan?.id);
+      if (!cancelled) {
+        setProgress(prog);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
   }, [user?.id]);
 
   const pillarGroups = useMemo(() => {
@@ -42,18 +53,16 @@ export default function PracticePage() {
     return groups;
   }, [structuredWeeks, plan, progress]);
 
-  
-
   const pillars = Object.keys(pillarGroups);
   const filteredPillars = filter === 'all' ? pillars : pillars.filter(p => p === filter);
 
-  if (!plan) {
+  if (loading || !plan) {
     return (
       <DashboardLayout title="Practice">
         <div className="rounded-xl border border-border bg-card p-8 text-center space-y-3">
           <Dumbbell className="w-10 h-10 text-muted-foreground mx-auto" />
-          <h2 className="text-base font-semibold text-card-foreground">No Practice Activities Yet</h2>
-          <p className="text-sm text-muted-foreground">Complete onboarding to get your personalized practice plan.</p>
+          <h2 className="text-base font-semibold text-card-foreground">{loading ? 'Loading...' : 'No Practice Activities Yet'}</h2>
+          {!loading && <p className="text-sm text-muted-foreground">Complete onboarding to get your personalized practice plan.</p>}
         </div>
       </DashboardLayout>
     );

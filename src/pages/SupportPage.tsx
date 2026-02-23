@@ -1,10 +1,13 @@
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { storage } from '@/lib/storage';
+import { loadProfile, loadPlan, loadProgress } from '@/lib/services';
 import DashboardLayout from '@/components/DashboardLayout';
 import BalancingBadge from '@/components/BalancingBadge';
 import AdherencePrediction from '@/components/AdherencePrediction';
 import { Heart, MessageCircle, HelpCircle, BookOpen, Users, Phone, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import type { Profile, Plan } from '@/lib/types';
+import type { ProgressData } from '@/lib/services/progressService';
 
 const supportResources = [
   {
@@ -40,12 +43,22 @@ const supportResources = [
 export default function SupportPage() {
   const { user } = useAuth();
   const nav = useNavigate();
+  const [profile, setProfile] = useState<Profile | undefined>();
+  const [plan, setPlan] = useState<Plan | undefined>();
+  const [progress, setProgress] = useState<ProgressData>({ completedActions: {}, resourcesEngaged: [], academicLog: [], completedGoals: {} });
 
-  const profile = user ? storage.allProfiles().find(p => p.userId === user.id) : undefined;
-  const plan = user ? storage.allPlans().find(p => p.userId === user.id) : undefined;
-  const progress = user ? storage.getProgress(user.id) : { completedActions: {} as Record<string, boolean>, resourcesEngaged: [] as string[], academicLog: [] as any[], completedGoals: {} as Record<string, string> };
-
-  
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    Promise.all([loadProfile(user.id), loadPlan(user.id)]).then(async ([prof, planData]) => {
+      if (cancelled) return;
+      setProfile(prof);
+      setPlan(planData.plan);
+      const prog = await loadProgress(user.id, planData.plan?.id);
+      if (!cancelled) setProgress(prog);
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   return (
     <DashboardLayout title="Support">
@@ -69,7 +82,7 @@ export default function SupportPage() {
         </div>
       )}
 
-      {plan && profile && (
+      {plan && profile && user && (
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-foreground">Plan Check-In</h3>
           <AdherencePrediction

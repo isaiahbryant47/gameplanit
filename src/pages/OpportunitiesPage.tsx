@@ -1,6 +1,5 @@
-import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { storage } from '@/lib/storage';
+import { loadProfile, loadPlan, loadProgress } from '@/lib/services';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Trophy, Lock, TrendingUp, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -8,15 +7,33 @@ import { fetchUserUnlocks } from '@/lib/unlockService';
 import { recalculateReadiness, type ReadinessExplanation, getDifficultyTier } from '@/lib/readinessEngine';
 import CareerUnlockedOpportunities from '@/components/CareerUnlockedOpportunities';
 import UnlockedOpportunities from '@/components/UnlockedOpportunities';
+import type { Profile, Plan } from '@/lib/types';
+import type { ProgressData } from '@/lib/services/progressService';
 
 export default function OpportunitiesPage() {
   const { user } = useAuth();
   const [unlockCount, setUnlockCount] = useState(0);
   const [readinessData, setReadinessData] = useState<ReadinessExplanation | null>(null);
+  const [profile, setProfile] = useState<Profile | undefined>();
+  const [plan, setPlan] = useState<Plan | undefined>();
+  const [progress, setProgress] = useState<ProgressData>({ completedActions: {}, resourcesEngaged: [], academicLog: [], completedGoals: {} });
+  const [loading, setLoading] = useState(true);
 
-  const profile = user ? storage.allProfiles().find(p => p.userId === user.id) : undefined;
-  const plan = user ? storage.allPlans().find(p => p.userId === user.id) : undefined;
-  const progress = user ? storage.getProgress(user.id) : { completedActions: {} as Record<string, boolean>, resourcesEngaged: [] as string[], academicLog: [] as any[], completedGoals: {} as Record<string, string> };
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    Promise.all([loadProfile(user.id), loadPlan(user.id)]).then(async ([prof, planData]) => {
+      if (cancelled) return;
+      setProfile(prof);
+      setPlan(planData.plan);
+      const prog = await loadProgress(user.id, planData.plan?.id);
+      if (!cancelled) {
+        setProgress(prog);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const careerPathId = profile?.careerPathId || (plan as any)?.careerPathId;
   const totalActions = plan?.weeks.reduce((sum, w) => sum + w.actions.length, 0) || 0;
@@ -46,7 +63,15 @@ export default function OpportunitiesPage() {
     }).then(setReadinessData);
   }, [user?.id, careerPathId, cycleNumber, completionRate]);
 
-  
+  if (loading) {
+    return (
+      <DashboardLayout title="Opportunities">
+        <div className="rounded-xl border border-border bg-card p-8 text-center">
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Opportunities">
@@ -100,7 +125,7 @@ export default function OpportunitiesPage() {
         </div>
       </div>
 
-      {careerPathId && (
+      {careerPathId && user && (
         <CareerUnlockedOpportunities
           userId={user.id}
           careerPathId={careerPathId}

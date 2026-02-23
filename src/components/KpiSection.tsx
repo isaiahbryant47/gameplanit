@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { storage, type ProgressData } from '@/lib/storage';
+import { saveProgress, type ProgressData } from '@/lib/services/progressService';
 import type { Plan, Profile } from '@/lib/types';
 import { TrendingUp, Target, BookOpen, GraduationCap, Plus, ChevronDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -8,18 +8,19 @@ interface Props {
   plan: Plan;
   profile: Profile;
   userId: string;
+  progress: ProgressData;
+  onProgressChange: (p: ProgressData) => void;
 }
 
-export default function KpiSection({ plan, profile, userId }: Props) {
-  const [progress, setProgress] = useState(() => storage.getProgress(userId));
+export default function KpiSection({ plan, profile, userId, progress, onProgressChange }: Props) {
   const [showAcademicForm, setShowAcademicForm] = useState(false);
   const [gpaInput, setGpaInput] = useState('');
   const [attendanceInput, setAttendanceInput] = useState('');
   const [expanded, setExpanded] = useState(true);
 
   const save = (updated: ProgressData) => {
-    setProgress(updated);
-    storage.saveProgress(userId, updated);
+    onProgressChange(updated);
+    saveProgress(userId, plan.id, updated);
   };
 
   const totalActions = plan.weeks.reduce((sum, w) => sum + w.actions.length, 0);

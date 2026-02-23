@@ -1,31 +1,42 @@
-import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { storage } from '@/lib/storage';
+import { loadProfile, loadPlan, loadProgress } from '@/lib/services';
 import DashboardLayout from '@/components/DashboardLayout';
 import ReadinessSnapshot from '@/components/ReadinessSnapshot';
 import { Award, FolderOpen, CheckCircle2, Star, FileText } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { recalculateReadiness, type ReadinessExplanation } from '@/lib/readinessEngine';
 import type { StructuredWeek } from '@/lib/llmPlanService';
+import type { Profile, Plan } from '@/lib/types';
+import type { ProgressData } from '@/lib/services/progressService';
 
 export default function CertsProofPage() {
   const { user } = useAuth();
   const [readinessData, setReadinessData] = useState<ReadinessExplanation | null>(null);
+  const [profile, setProfile] = useState<Profile | undefined>();
+  const [plan, setPlan] = useState<Plan | undefined>();
+  const [progress, setProgress] = useState<ProgressData>({ completedActions: {}, resourcesEngaged: [], academicLog: [], completedGoals: {} });
+  const [structuredWeeks, setStructuredWeeks] = useState<StructuredWeek[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const profile = user ? storage.allProfiles().find(p => p.userId === user.id) : undefined;
-  const plan = user ? storage.allPlans().find(p => p.userId === user.id) : undefined;
-  const progress = user ? storage.getProgress(user.id) : { completedActions: {} as Record<string, boolean>, resourcesEngaged: [] as string[], academicLog: [] as any[], completedGoals: {} as Record<string, string> };
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    Promise.all([loadProfile(user.id), loadPlan(user.id)]).then(async ([prof, planData]) => {
+      if (cancelled) return;
+      setProfile(prof);
+      setPlan(planData.plan);
+      setStructuredWeeks(planData.structuredWeeks);
+      const prog = await loadProgress(user.id, planData.plan?.id);
+      if (!cancelled) {
+        setProgress(prog);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const careerPathId = profile?.careerPathId || (plan as any)?.careerPathId;
   const cycleNumber = plan?.cycleNumber || 1;
-
-  const structuredWeeks: StructuredWeek[] = useMemo(() => {
-    if (!user) return [];
-    try {
-      const raw = localStorage.getItem(`gp_structured_weeks_${user.id}`);
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
-  }, [user?.id]);
 
   const proofActions = useMemo(() => {
     const items: { task: string; resource: string; weekNum: number; done: boolean }[] = [];
@@ -68,7 +79,15 @@ export default function CertsProofPage() {
     }).then(setReadinessData);
   }, [user?.id, careerPathId, cycleNumber]);
 
-  
+  if (loading) {
+    return (
+      <DashboardLayout title="Certs & Proof">
+        <div className="rounded-xl border border-border bg-card p-8 text-center">
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Certs & Proof">

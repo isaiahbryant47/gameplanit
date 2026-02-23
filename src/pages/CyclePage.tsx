@@ -1,25 +1,43 @@
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { storage } from '@/lib/storage';
+import { loadProfile, loadPlan, loadProgress } from '@/lib/services';
 import DashboardLayout from '@/components/DashboardLayout';
 import PlanCalendarView from '@/components/PlanCalendarView';
 import { CalendarDays, Target, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import type { Profile, Plan } from '@/lib/types';
+import type { ProgressData } from '@/lib/services/progressService';
 
 export default function CyclePage() {
   const { user } = useAuth();
+  const [profile, setProfile] = useState<Profile | undefined>();
+  const [plan, setPlan] = useState<Plan | undefined>();
+  const [progress, setProgress] = useState<ProgressData>({ completedActions: {}, resourcesEngaged: [], academicLog: [], completedGoals: {} });
+  const [loading, setLoading] = useState(true);
 
-  const profile = user ? storage.allProfiles().find(p => p.userId === user.id) : undefined;
-  const plan = user ? storage.allPlans().find(p => p.userId === user.id) : undefined;
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    Promise.all([loadProfile(user.id), loadPlan(user.id)]).then(async ([prof, planData]) => {
+      if (cancelled) return;
+      setProfile(prof);
+      setPlan(planData.plan);
+      const prog = await loadProgress(user.id, planData.plan?.id);
+      if (!cancelled) {
+        setProgress(prog);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
-  
-
-  if (!profile || !plan) {
+  if (loading || !profile || !plan) {
     return (
       <DashboardLayout title="My 12-Week Cycle">
         <div className="rounded-xl border border-border bg-card p-8 text-center space-y-3">
           <CalendarDays className="w-10 h-10 text-muted-foreground mx-auto" />
-          <h2 className="text-base font-semibold text-card-foreground">No Active Cycle</h2>
-          <p className="text-sm text-muted-foreground">Complete onboarding to start your first 12-week cycle.</p>
+          <h2 className="text-base font-semibold text-card-foreground">{loading ? 'Loading...' : 'No Active Cycle'}</h2>
+          {!loading && <p className="text-sm text-muted-foreground">Complete onboarding to start your first 12-week cycle.</p>}
         </div>
       </DashboardLayout>
     );
@@ -28,7 +46,6 @@ export default function CyclePage() {
   const cycleNumber = plan.cycleNumber || 1;
   const daysSinceStart = Math.floor((Date.now() - new Date(plan.createdAt).getTime()) / (1000 * 60 * 60 * 24));
   const currentWeekNum = Math.min(12, Math.max(1, Math.ceil(daysSinceStart / 7)));
-  const progress = storage.getProgress(user.id);
   const totalActions = plan.weeks.reduce((sum, w) => sum + w.actions.length, 0);
   const completedCount = plan.weeks.reduce((sum, w) =>
     sum + w.actions.filter((_, i) => progress.completedActions[`${w.id}-${i}`]).length, 0
