@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { storage } from '@/lib/storage';
+import { loadProfile } from '@/lib/services';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import CareerPathMap from '@/components/explore/CareerPathMap';
 import CareerPreviewPanel from '@/components/explore/CareerPreviewPanel';
 import { fetchCareerDomains, fetchCareerPaths } from '@/lib/careerService';
-import type { CareerDomain, CareerPath } from '@/lib/types';
+import type { CareerDomain, CareerPath, Profile } from '@/lib/types';
 import { Search, X, ArrowLeft, Compass, ArrowRight } from 'lucide-react';
 
 const domainEmojis: Record<string, string> = {
@@ -38,8 +38,11 @@ export default function ExploreCareers() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
+  const [profile, setProfile] = useState<Profile | undefined>();
 
-  const profile = user ? storage.allProfiles().find((p) => p.userId === user.id) : undefined;
+  useEffect(() => {
+    if (user) loadProfile(user.id).then(setProfile);
+  }, [user?.id]);
 
   useEffect(() => {
     Promise.all([fetchCareerDomains(), fetchCareerPaths()]).then(([d, p]) => {
@@ -49,7 +52,6 @@ export default function ExploreCareers() {
     });
   }, []);
 
-  // Search results across all domains
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
@@ -62,7 +64,6 @@ export default function ExploreCareers() {
 
   const isSearching = searchQuery.trim().length > 0;
 
-  // Domain paths with optional tag filter
   const domainPaths = useMemo(() => {
     if (!selectedDomainId) return [];
     let paths = allCareerPaths.filter(p => p.domainId === selectedDomainId);
@@ -72,7 +73,6 @@ export default function ExploreCareers() {
     return paths;
   }, [selectedDomainId, allCareerPaths, activeTagFilter]);
 
-  // Collect unique tags for the selected domain
   const domainTags = useMemo(() => {
     if (!selectedDomainId) return [];
     const paths = allCareerPaths.filter(p => p.domainId === selectedDomainId);
@@ -81,7 +81,6 @@ export default function ExploreCareers() {
     return Array.from(tagSet).sort();
   }, [selectedDomainId, allCareerPaths]);
 
-  // Career counts per domain
   const domainCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     allCareerPaths.forEach(p => {
@@ -92,8 +91,6 @@ export default function ExploreCareers() {
 
   const selectedPath = selectedPathId ? allCareerPaths.find(p => p.id === selectedPathId) : null;
   const selectedDomain = selectedDomainId ? careerDomains.find(d => d.id === selectedDomainId) : null;
-
-  
 
   const handleSelectDomain = (domainId: string) => {
     const isActive = selectedDomainId === domainId;
@@ -116,7 +113,6 @@ export default function ExploreCareers() {
         <DashboardSidebar />
 
         <main className="flex-1 min-w-0">
-          {/* Top bar */}
           <div className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur-sm">
             <div className="flex items-center justify-between px-6 py-3">
               <div className="flex items-center gap-3">
@@ -127,7 +123,6 @@ export default function ExploreCareers() {
           </div>
 
           <div className="max-w-5xl mx-auto px-6 py-6 space-y-6">
-            {/* Header + Search */}
             <div className="space-y-4">
               <div>
                 <h2 className="text-lg font-bold text-card-foreground">Explore Career Paths</h2>
@@ -136,7 +131,6 @@ export default function ExploreCareers() {
                 </p>
               </div>
 
-              {/* Search bar */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
@@ -156,7 +150,6 @@ export default function ExploreCareers() {
                 )}
               </div>
 
-              {/* Search results dropdown */}
               {isSearching && (
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
                   <div className="px-4 py-2.5 border-b border-border bg-accent/30">
@@ -203,7 +196,6 @@ export default function ExploreCareers() {
               )}
             </div>
 
-            {/* Domain tiles */}
             {!isSearching && (
               <>
                 {loading ? (
@@ -216,19 +208,6 @@ export default function ExploreCareers() {
                           <div className="h-2 w-12 bg-muted rounded mx-auto" />
                         </div>
                       ))}
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-                      <div className="lg:col-span-3 rounded-xl border border-border bg-card p-5 animate-pulse">
-                        <div className="h-4 w-32 bg-muted rounded mb-3" />
-                        <div className="grid grid-cols-2 gap-2">
-                          {Array.from({ length: 4 }).map((_, i) => (
-                            <div key={i} className="h-16 bg-muted rounded-lg" />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="lg:col-span-2 rounded-xl border border-dashed border-border p-8 animate-pulse">
-                        <div className="h-4 w-40 bg-muted rounded mx-auto" />
-                      </div>
                     </div>
                   </div>
                 ) : (
@@ -264,7 +243,6 @@ export default function ExploreCareers() {
                   </div>
                 )}
 
-                {/* Selected domain header + tag filters */}
                 {selectedDomainId && !loading && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -286,7 +264,6 @@ export default function ExploreCareers() {
                       </div>
                     </div>
 
-                    {/* Tag filter chips */}
                     {domainTags.length > 1 && (
                       <div className="flex flex-wrap gap-1.5">
                         <button
@@ -317,7 +294,6 @@ export default function ExploreCareers() {
                   </div>
                 )}
 
-                {/* Career Map + Preview */}
                 {selectedDomainId && domainPaths.length > 0 && (
                   <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
                     <div className="lg:col-span-3">
@@ -372,22 +348,14 @@ export default function ExploreCareers() {
                   </div>
                 )}
 
-                {/* Initial guidance when no domain selected */}
                 {!selectedDomainId && !loading && (
-                  <div className="rounded-xl border border-border bg-card/50 p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <Compass className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-card-foreground">How to explore</h3>
-                        <ol className="text-xs text-muted-foreground mt-2 space-y-1.5 list-decimal list-inside">
-                          <li>Pick a domain above that interests you</li>
-                          <li>Browse careers and click one to see its roadmap</li>
-                          <li>See how careers connect — where they lead and what's related</li>
-                          <li>When you find the right fit, start your 12-week path</li>
-                        </ol>
-                      </div>
+                  <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center space-y-3">
+                    <Compass className="w-10 h-10 text-muted-foreground/40 mx-auto" />
+                    <div>
+                      <p className="text-base font-semibold text-card-foreground">Choose a Domain</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Select a career domain above to explore paths, or use the search bar to find specific careers.
+                      </p>
                     </div>
                   </div>
                 )}

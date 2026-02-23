@@ -696,6 +696,42 @@ export type Database = {
           },
         ]
       }
+      user_progress: {
+        Row: {
+          academic_log: Json
+          completed_actions: Json
+          completed_goals: Json
+          created_at: string
+          id: string
+          plan_id: string
+          resources_engaged: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          academic_log?: Json
+          completed_actions?: Json
+          completed_goals?: Json
+          created_at?: string
+          id?: string
+          plan_id: string
+          resources_engaged?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          academic_log?: Json
+          completed_actions?: Json
+          completed_goals?: Json
+          created_at?: string
+          id?: string
+          plan_id?: string
+          resources_engaged?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_readiness: {
         Row: {
           career_path_id: string

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { storage } from '@/lib/storage';
+import { loadProfile } from '@/lib/services';
 import { fetchMatchingResources, type Resource } from '@/lib/resourceService';
 import { generateLLMPlan } from '@/lib/llmPlanService';
-import type { Plan } from '@/lib/types';
+import type { Plan, Profile } from '@/lib/types';
 import { generatePlanWeeks } from '@/lib/planGenerator';
 import { DollarSign, Clock, Star, Check, Loader2, MapPin, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
@@ -55,8 +55,16 @@ export default function Recommendations() {
   const [groupBy, setGroupBy] = useState<'cost' | 'time' | 'match' | 'distance'>('match');
   const [generating, setGenerating] = useState(false);
   const [genStatus, setGenStatus] = useState('');
+  const [profile, setProfile] = useState<Profile | undefined>();
+  const [profileLoading, setProfileLoading] = useState(true);
 
-  const profile = user ? storage.allProfiles().find(p => p.userId === user.id) : null;
+  useEffect(() => {
+    if (!user) return;
+    loadProfile(user.id).then(p => {
+      setProfile(p);
+      setProfileLoading(false);
+    });
+  }, [user?.id]);
 
   useEffect(() => {
     if (!profile) return;
@@ -72,8 +80,8 @@ export default function Recommendations() {
     });
   }, [!!profile]);
 
-  
-  if (!profile) return <Navigate to="/onboarding" />;
+  if (!profileLoading && !profile) return <Navigate to="/onboarding" />;
+  if (profileLoading || !profile) return null;
 
   const toggle = (id: string) => {
     setSelected(prev => {
@@ -141,53 +149,16 @@ export default function Recommendations() {
     setGenStatus('Building your personalized plan with AI...');
 
     try {
-      // Try LLM-powered generation first
       const result = await generateLLMPlan(profile, user.id);
-
-      // Also save a local copy for the existing dashboard compatibility
-      const localWeeks = result.weeks.map((w, i) => ({
-        id: crypto.randomUUID(),
-        planId: result.planId,
-        weekNumber: w.week,
-        focus: w.focus,
-        actions: w.actions.map(a => a.task),
-        resources: w.actions.map(a => `${a.resource} — ${a.access}`),
-        milestones: [w.milestone],
-      }));
-
-      const plan: Plan = {
-        id: result.planId,
-        userId: user.id,
-        profileId: profile.id,
-        title: `12-Week Plan: ${profile.goals.join(' & ')}`,
-        createdAt: new Date().toISOString(),
-        weeks: localWeeks,
-        pathwayId: profile.pathwayId,
-        cycleNumber: 1,
-        outcomeStatement: profile.outcomeStatement,
-        targetDate: profile.targetDate,
-        goalDomain: profile.goalDomain,
-      };
-      storage.savePlans([...storage.allPlans().filter(p => p.userId !== user.id), plan]);
-
-      // Store the structured weeks separately for the enhanced dashboard
-      localStorage.setItem(`gp_structured_weeks_${user.id}`, JSON.stringify(result.weeks));
-
       toast.success('Your personalized plan is ready!');
       nav('/dashboard');
     } catch (err) {
       console.error('LLM plan generation failed, falling back:', err);
       toast.error('AI generation had an issue — using smart template instead.');
 
-      // Fallback to deterministic generation
       const selectedResources = resources.filter(r => selected.has(r.id));
       const planId = crypto.randomUUID();
       const weeks = generatePlanWeeks(profile, planId, selectedResources);
-      const plan: Plan = {
-        id: planId, userId: user.id, profileId: profile.id,
-        title: '12-Week Game Plan', createdAt: new Date().toISOString(), weeks,
-      };
-      storage.savePlans([...storage.allPlans().filter(p => p.userId !== user.id), plan]);
       nav('/dashboard');
     } finally {
       setGenerating(false);
@@ -203,7 +174,6 @@ export default function Recommendations() {
         <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">Recommendations</span>
       </div>
 
-      {/* Header */}
       <div className="border-b border-border bg-card">
         <div className="max-w-4xl mx-auto px-6 py-5">
           <h1 className="text-xl font-bold text-card-foreground">Pick Your Resources</h1>
@@ -230,7 +200,6 @@ export default function Recommendations() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -295,7 +264,6 @@ export default function Recommendations() {
         )}
       </div>
 
-      {/* Generating overlay */}
       {generating && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
           <div className="text-center space-y-4 p-8">
@@ -309,7 +277,6 @@ export default function Recommendations() {
         </div>
       )}
 
-      {/* Sticky footer */}
       {resources.length > 0 && !generating && (
         <div className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-sm">
           <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">

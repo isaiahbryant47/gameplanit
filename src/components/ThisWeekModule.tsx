@@ -2,7 +2,7 @@ import { CheckSquare, Square, BookOpen, Clock, ChevronDown, ChevronUp } from 'lu
 import { useState } from 'react';
 import type { Plan } from '@/lib/types';
 import type { StructuredWeek, StructuredAction } from '@/lib/llmPlanService';
-import { storage, type ProgressData } from '@/lib/storage';
+import { saveProgress, type ProgressData } from '@/lib/services/progressService';
 
 interface Props {
   plan: Plan;
@@ -15,7 +15,6 @@ interface Props {
 export default function ThisWeekModule({ plan, structuredWeeks, userId, progress, onProgressChange }: Props) {
   const [expanded, setExpanded] = useState(true);
 
-  // Current week based on plan creation date (handle day-0 and clock skew)
   const daysSinceStart = Math.max(0, Math.floor((Date.now() - new Date(plan.createdAt).getTime()) / (1000 * 60 * 60 * 24)));
   const currentWeekNum = Math.min(12, Math.max(1, Math.ceil((daysSinceStart + 1) / 7)));
 
@@ -25,7 +24,7 @@ export default function ThisWeekModule({ plan, structuredWeeks, userId, progress
   if (!currentPlanWeek) return null;
 
   const toggleAction = (actionKey: string) => {
-    const updated = {
+    const updated: ProgressData = {
       ...progress,
       completedActions: {
         ...progress.completedActions,
@@ -33,7 +32,7 @@ export default function ThisWeekModule({ plan, structuredWeeks, userId, progress
       },
     };
     onProgressChange(updated);
-    storage.saveProgress(userId, updated);
+    saveProgress(userId, plan.id, updated);
   };
 
   const actions = currentStructuredWeek?.actions || [];
@@ -75,7 +74,6 @@ export default function ThisWeekModule({ plan, structuredWeeks, userId, progress
                     done ? 'border-primary/30 bg-primary/5' : 'border-border'
                   }`}
                 >
-                  {/* Task + toggle */}
                   <div className="flex items-start gap-3">
                     <button onClick={() => toggleAction(actionKey)} className="mt-0.5 shrink-0">
                       {done ? (
@@ -96,7 +94,6 @@ export default function ThisWeekModule({ plan, structuredWeeks, userId, progress
                     </div>
                   </div>
 
-                  {/* Resource details */}
                   {!done && (
                     <div className="ml-8 space-y-2">
                       <div className="flex items-center gap-2">
@@ -147,7 +144,6 @@ export default function ThisWeekModule({ plan, structuredWeeks, userId, progress
               );
             })
           ) : (
-            // Fallback to plain actions
             <ul className="space-y-2">
               {currentPlanWeek.actions.map((a, i) => {
                 const actionKey = `${currentPlanWeek.id}-${i}`;
