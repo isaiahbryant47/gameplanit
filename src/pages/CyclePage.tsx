@@ -11,7 +11,7 @@ export default function CyclePage() {
   const profile = user ? storage.allProfiles().find(p => p.userId === user.id) : undefined;
   const plan = user ? storage.allPlans().find(p => p.userId === user.id) : undefined;
 
-  if (!user) return <Navigate to="/login" />;
+  
 
   if (!profile || !plan) {
     return (

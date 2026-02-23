@@ -46,7 +46,7 @@ export default function OpportunitiesPage() {
     }).then(setReadinessData);
   }, [user?.id, careerPathId, cycleNumber, completionRate]);
 
-  if (!user) return <Navigate to="/login" />;
+  
 
   return (
     <DashboardLayout title="Opportunities">

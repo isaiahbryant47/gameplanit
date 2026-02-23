@@ -56,7 +56,7 @@ export default function Partner() {
     fetchData();
   }, [user]);
 
-  if (!user) return <Navigate to="/login" />;
+  
   if (user.role !== 'partner_admin' || accessDenied) return <Navigate to="/dashboard" />;
 
   const filtered = rows.filter(({ profile }) =>

@@ -60,7 +60,7 @@ export default function ResourceAdmin() {
     setLoading(false);
   };
 
-  if (!user) return <Navigate to="/login" />;
+  
   if (user.role !== 'partner_admin') return <Navigate to="/dashboard" />;
 
   const openEdit = (r: Resource) => {

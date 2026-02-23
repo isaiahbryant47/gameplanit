@@ -93,7 +93,7 @@ export default function ExploreCareers() {
   const selectedPath = selectedPathId ? allCareerPaths.find(p => p.id === selectedPathId) : null;
   const selectedDomain = selectedDomainId ? careerDomains.find(d => d.id === selectedDomainId) : null;
 
-  if (!user) return <Navigate to="/login" />;
+  
 
   const handleSelectDomain = (domainId: string) => {
     const isActive = selectedDomainId === domainId;

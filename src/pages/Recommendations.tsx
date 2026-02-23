@@ -72,7 +72,7 @@ export default function Recommendations() {
     });
   }, [!!profile]);
 
-  if (!user) return <Navigate to="/login" />;
+  
   if (!profile) return <Navigate to="/onboarding" />;
 
   const toggle = (id: string) => {

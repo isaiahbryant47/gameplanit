@@ -45,7 +45,7 @@ export default function SupportPage() {
   const plan = user ? storage.allPlans().find(p => p.userId === user.id) : undefined;
   const progress = user ? storage.getProgress(user.id) : { completedActions: {} as Record<string, boolean>, resourcesEngaged: [] as string[], academicLog: [] as any[], completedGoals: {} as Record<string, string> };
 
-  if (!user) return <Navigate to="/login" />;
+  
 
   return (
     <DashboardLayout title="Support">
