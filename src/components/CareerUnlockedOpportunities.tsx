@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { UserCareerUnlock, CareerUnlockRule, OpportunityType } from '@/lib/types';
 import { fetchUserUnlocks, fetchUnlockRules, markOpportunitySeen, markOpportunityAccepted, getUnlockReason } from '@/lib/unlockService';
+import { emitOpportunityAccepted } from '@/lib/services/activityService';
 import { getDifficultyTier } from '@/lib/readinessEngine';
 import { Trophy, ExternalLink, ChevronDown, ChevronUp, Briefcase, GraduationCap, Award, BookOpen, Calendar, Swords, Check, Eye, Star } from 'lucide-react';
 
@@ -150,6 +151,7 @@ export default function CareerUnlockedOpportunities({ userId, careerPathId, comp
                       <button
                         onClick={async () => {
                           await markOpportunityAccepted(unlock.id);
+                          emitOpportunityAccepted(userId, unlock.opportunityId, opp.title);
                           setUnlocks(prev => prev.map(u => u.id === unlock.id ? { ...u, accepted: true, seen: true } : u));
                         }}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-primary px-4 py-2 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"

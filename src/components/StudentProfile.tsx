@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { saveProfile } from '@/lib/services';
+import { emitProfileUpdated } from '@/lib/services/activityService';
 import type { Profile, Transportation } from '@/lib/types';
 import { X, Save, User } from 'lucide-react';
 import GoalBuilder from '@/components/GoalBuilder';
@@ -96,6 +97,7 @@ export default function StudentProfile({ profile, onClose, onSave }: Props) {
 
     try {
       await saveProfile(updated);
+      emitProfileUpdated(updated.userId);
     } catch (e) {
       console.error('Failed to save profile:', e);
     }

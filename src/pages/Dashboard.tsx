@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { loadProfile, loadPlan, loadProgress, saveProgress, type ProgressData } from '@/lib/services';
+import { emitCycleStarted } from '@/lib/services/activityService';
 import { generateLLMPlan, fetchUserPlan, type StructuredWeek, type StructuredAction } from '@/lib/llmPlanService';
 import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
 import {
@@ -363,6 +364,7 @@ export default function Dashboard() {
         completedGoals: {},
       }));
       setProgress(freshProgress);
+      emitCycleStarted(user.id, result.planId, cycleNumber + 1);
       toast.success(`Cycle ${cycleNumber + 1} is ready!`);
     } catch (err) {
       console.error('Cycle generation failed:', err);
