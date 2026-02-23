@@ -33,7 +33,7 @@ export default function CyclePage() {
 
   if (loading || !profile || !plan) {
     return (
-      <DashboardLayout title="My 12-Week Cycle">
+      <DashboardLayout title="My Plan">
         <div className="rounded-xl border border-border bg-card p-8 text-center space-y-3">
           <CalendarDays className="w-10 h-10 text-muted-foreground mx-auto" />
           <h2 className="text-base font-semibold text-card-foreground">{loading ? 'Loading...' : 'No Active Cycle'}</h2>
@@ -58,7 +58,7 @@ export default function CyclePage() {
   });
 
   return (
-    <DashboardLayout title="My 12-Week Cycle">
+    <DashboardLayout title="My Plan">
       <div className="rounded-xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

@@ -183,7 +183,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between px-6 py-3">
                 <div className="flex items-center gap-3">
                   <SidebarTrigger className="text-muted-foreground" />
-                  <h1 className="text-sm font-medium text-muted-foreground hidden sm:block">Student Dashboard</h1>
+                  <h1 className="text-sm font-medium text-muted-foreground hidden sm:block">Home</h1>
                 </div>
               </div>
             </div>
@@ -378,7 +378,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between px-6 py-3">
               <div className="flex items-center gap-3">
                 <SidebarTrigger className="text-muted-foreground" />
-                <h1 className="text-sm font-medium text-muted-foreground hidden sm:block">Student Dashboard</h1>
+                <h1 className="text-sm font-medium text-muted-foreground hidden sm:block">Home</h1>
               </div>
               <div className="flex items-center gap-2">
                 <button

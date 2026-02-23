@@ -117,7 +117,7 @@ export default function ExploreCareers() {
             <div className="flex items-center justify-between px-6 py-3">
               <div className="flex items-center gap-3">
                 <SidebarTrigger className="text-muted-foreground" />
-                <h1 className="text-sm font-medium text-muted-foreground hidden sm:block">Explore Career Paths</h1>
+                <h1 className="text-sm font-medium text-muted-foreground hidden sm:block">Discover</h1>
               </div>
             </div>
           </div>
@@ -125,7 +125,7 @@ export default function ExploreCareers() {
           <div className="max-w-5xl mx-auto px-6 py-6 space-y-6">
             <div className="space-y-4">
               <div>
-                <h2 className="text-lg font-bold text-card-foreground">Explore Career Paths</h2>
+                <h2 className="text-lg font-bold text-card-foreground">Discover</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Discover how careers connect and find your direction. Pick a domain or search for a career.
                 </p>
