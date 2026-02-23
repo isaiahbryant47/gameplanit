@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { Plan } from '@/lib/types';
 import type { StructuredWeek, StructuredAction } from '@/lib/llmPlanService';
 import { saveProgress, type ProgressData } from '@/lib/services/progressService';
+import { emitActionCompleted, emitActionUncompleted } from '@/lib/services/activityService';
 
 interface Props {
   plan: Plan;
@@ -23,16 +24,24 @@ export default function ThisWeekModule({ plan, structuredWeeks, userId, progress
 
   if (!currentPlanWeek) return null;
 
-  const toggleAction = (actionKey: string) => {
+  const toggleAction = (actionKey: string, actionIndex: number, actionName?: string) => {
+    const wasCompleted = !!progress.completedActions[actionKey];
     const updated: ProgressData = {
       ...progress,
       completedActions: {
         ...progress.completedActions,
-        [actionKey]: !progress.completedActions[actionKey],
+        [actionKey]: !wasCompleted,
       },
     };
     onProgressChange(updated);
     saveProgress(userId, plan.id, updated);
+
+    // Emit event (fire-and-forget)
+    if (!wasCompleted) {
+      emitActionCompleted(userId, plan.id, currentPlanWeek!.id, actionIndex, actionName);
+    } else {
+      emitActionUncompleted(userId, plan.id, currentPlanWeek!.id, actionIndex);
+    }
   };
 
   const actions = currentStructuredWeek?.actions || [];
@@ -75,7 +84,7 @@ export default function ThisWeekModule({ plan, structuredWeeks, userId, progress
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <button onClick={() => toggleAction(actionKey)} className="mt-0.5 shrink-0">
+                    <button onClick={() => toggleAction(actionKey, i, a.task)} className="mt-0.5 shrink-0">
                       {done ? (
                         <CheckSquare className="w-5 h-5 text-primary" />
                       ) : (
@@ -150,7 +159,7 @@ export default function ThisWeekModule({ plan, structuredWeeks, userId, progress
                 const done = !!progress.completedActions[actionKey];
                 return (
                   <li key={i} className="flex items-start gap-3 text-sm">
-                    <button onClick={() => toggleAction(actionKey)} className="mt-0.5 shrink-0">
+                    <button onClick={() => toggleAction(actionKey, i, a)} className="mt-0.5 shrink-0">
                       {done ? <CheckSquare className="w-5 h-5 text-primary" /> : <Square className="w-5 h-5 text-muted-foreground" />}
                     </button>
                     <span className={done ? 'line-through text-muted-foreground' : 'text-card-foreground'}>{a}</span>

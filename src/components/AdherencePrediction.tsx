@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { type ProgressData } from '@/lib/services/progressService';
 import { updatePlanWeekActions } from '@/lib/services';
+import { emitPlanAdapted } from '@/lib/services/activityService';
 import {
   predictAdherence,
   getWeekCompletionRate,
@@ -97,6 +98,7 @@ export default function AdherencePrediction({ plan, profile, userId, progress, o
     // Update in Supabase
     try {
       await updatePlanWeekActions(plan.id, currentWeekNum, microActions);
+      emitPlanAdapted(userId, plan.id, currentWeekNum, 'lightened_due_to_risk');
     } catch (e) {
       console.error('Failed to lighten week:', e);
     }

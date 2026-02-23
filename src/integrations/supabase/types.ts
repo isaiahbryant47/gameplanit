@@ -585,6 +585,30 @@ export type Database = {
         }
         Relationships: []
       }
+      student_events: {
+        Row: {
+          created_at: string
+          event_type: Database["public"]["Enums"]["student_event_type"]
+          id: string
+          payload: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: Database["public"]["Enums"]["student_event_type"]
+          id?: string
+          payload?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["student_event_type"]
+          id?: string
+          payload?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_career_unlocks: {
         Row: {
           accepted: boolean
@@ -895,6 +919,16 @@ export type Database = {
         | "mentorship"
         | "community_event"
         | "career_program"
+      student_event_type:
+        | "action_completed"
+        | "action_uncompleted"
+        | "goal_completed"
+        | "resource_engaged"
+        | "opportunity_accepted"
+        | "cycle_started"
+        | "reflection_submitted"
+        | "profile_updated"
+        | "plan_adapted"
       transport_mode: "walk" | "public" | "car" | "mixed" | "virtual"
     }
     CompositeTypes: {
@@ -1040,6 +1074,17 @@ export const Constants = {
         "mentorship",
         "community_event",
         "career_program",
+      ],
+      student_event_type: [
+        "action_completed",
+        "action_uncompleted",
+        "goal_completed",
+        "resource_engaged",
+        "opportunity_accepted",
+        "cycle_started",
+        "reflection_submitted",
+        "profile_updated",
+        "plan_adapted",
       ],
       transport_mode: ["walk", "public", "car", "mixed", "virtual"],
     },
