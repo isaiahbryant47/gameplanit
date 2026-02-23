@@ -61,3 +61,33 @@ export async function loadStructuredWeeks(userId: string): Promise<StructuredWee
     return [];
   }
 }
+
+/**
+ * Check if a plan exists for a user (lightweight).
+ */
+export async function planExists(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('plans')
+    .select('id')
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle();
+  return !!data;
+}
+
+/**
+ * Update the actions for a specific week in a plan (in plan_weeks table).
+ */
+export async function updatePlanWeekActions(planId: string, weekNumber: number, actions: string[]): Promise<void> {
+  const actionsJson = actions.map(task => ({ task, resource: '' }));
+  const { error } = await supabase
+    .from('plan_weeks')
+    .update({ actions: actionsJson })
+    .eq('plan_id', planId)
+    .eq('week_number', weekNumber);
+
+  if (error) {
+    console.error('planService.updatePlanWeekActions error:', error);
+    throw error;
+  }
+}

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { storage } from '@/lib/storage';
+import { saveProfile } from '@/lib/services';
 import type { Profile, Transportation } from '@/lib/types';
 import { X, Save, User } from 'lucide-react';
 import GoalBuilder from '@/components/GoalBuilder';
@@ -74,7 +74,7 @@ export default function StudentProfile({ profile, onClose, onSave }: Props) {
 
   const [saved, setSaved] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const updated: Profile = {
       ...profile,
       gradeLevel: f.gradeLevel,
@@ -93,7 +93,13 @@ export default function StudentProfile({ profile, onClose, onSave }: Props) {
         attendance: f.attendance ? Number(f.attendance) : undefined,
       },
     };
-    storage.saveProfiles([...storage.allProfiles().filter(p => p.id !== profile.id), updated]);
+
+    try {
+      await saveProfile(updated);
+    } catch (e) {
+      console.error('Failed to save profile:', e);
+    }
+
     onSave(updated);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);

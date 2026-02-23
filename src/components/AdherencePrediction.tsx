@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { storage, type ProgressData } from '@/lib/storage';
+import { type ProgressData } from '@/lib/services/progressService';
+import { updatePlanWeekActions } from '@/lib/services';
 import {
   predictAdherence,
   getWeekCompletionRate,
@@ -87,18 +88,19 @@ export default function AdherencePrediction({ plan, profile, userId, progress, o
     });
   }, [prediction, synced]);
 
-  const lightenWeek = () => {
+  const lightenWeek = async () => {
     if (!currentWeek) return;
     const goal = profile.goals[0] || 'your goal';
     const interest = profile.interests[0] || 'your interest';
     const microActions = generateMicroActions(goal, interest);
 
-    // Replace current week's actions with micro-actions
-    const updatedWeeks = plan.weeks.map(w =>
-      w.weekNumber === currentWeekNum ? { ...w, actions: microActions } : w
-    );
-    const updatedPlan = { ...plan, weeks: updatedWeeks };
-    storage.savePlans([...storage.allPlans().filter(p => p.id !== plan.id), updatedPlan]);
+    // Update in Supabase
+    try {
+      await updatePlanWeekActions(plan.id, currentWeekNum, microActions);
+    } catch (e) {
+      console.error('Failed to lighten week:', e);
+    }
+
     setAdapted(true);
     onPlanAdapted();
   };
