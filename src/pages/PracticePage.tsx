@@ -58,10 +58,10 @@ export default function PracticePage() {
 
   if (loading || !plan) {
     return (
-      <DashboardLayout title="Practice">
+      <DashboardLayout title="Progress">
         <div className="rounded-xl border border-border bg-card p-8 text-center space-y-3">
           <Dumbbell className="w-10 h-10 text-muted-foreground mx-auto" />
-          <h2 className="text-base font-semibold text-card-foreground">{loading ? 'Loading...' : 'No Practice Activities Yet'}</h2>
+          <h2 className="text-base font-semibold text-card-foreground">{loading ? 'Loading...' : 'No Progress Activities Yet'}</h2>
           {!loading && <p className="text-sm text-muted-foreground">Complete onboarding to get your personalized practice plan.</p>}
         </div>
       </DashboardLayout>
@@ -69,14 +69,14 @@ export default function PracticePage() {
   }
 
   return (
-    <DashboardLayout title="Practice">
+    <DashboardLayout title="Progress">
       <div className="rounded-xl border border-border bg-card p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Dumbbell className="w-5 h-5 text-primary" />
           <h2 className="text-base font-semibold text-card-foreground">Practice & Skill Building</h2>
         </div>
         <p className="text-sm text-muted-foreground">
-          All your practice activities organized by readiness pillar. Track what you've done and what's next.
+          All your progress activities organized by readiness pillar. Track what you've done and what's next.
         </p>
       </div>
 

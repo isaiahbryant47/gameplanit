@@ -132,7 +132,7 @@ export default function CertsProofPage() {
 
   if (loading) {
     return (
-      <DashboardLayout title="Certs & Proof">
+      <DashboardLayout title="My Proof">
         <div className="rounded-xl border border-border bg-card p-8 text-center">
           <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
@@ -141,7 +141,7 @@ export default function CertsProofPage() {
   }
 
   return (
-    <DashboardLayout title="Certs & Proof">
+    <DashboardLayout title="My Proof">
       <div className="rounded-xl border border-border bg-card p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Award className="w-5 h-5 text-primary" />

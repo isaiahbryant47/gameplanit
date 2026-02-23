@@ -1,7 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import DashboardSidebar from '@/components/DashboardSidebar';
-import { LogOut, UserCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import type { ReactNode } from 'react';
 
@@ -14,6 +14,19 @@ interface Props {
 export default function DashboardLayout({ title, children, actions }: Props) {
   const { logout } = useAuth();
   const nav = useNavigate();
+  const location = useLocation();
+
+  const breadcrumbByPath: Record<string, string> = {
+    '/dashboard': 'Home',
+    '/explore-careers': 'My Journey → Discover',
+    '/cycle': 'My Journey → My Plan',
+    '/opportunities': 'My Journey → Take Action',
+    '/certs': 'My Journey → My Proof',
+    '/practice': 'My Journey → Progress',
+    '/support': 'Help → Support',
+  };
+
+  const breadcrumb = breadcrumbByPath[location.pathname] ?? `My Journey → ${title}`;
 
   return (
     <SidebarProvider>
@@ -24,7 +37,10 @@ export default function DashboardLayout({ title, children, actions }: Props) {
             <div className="flex items-center justify-between px-6 py-3">
               <div className="flex items-center gap-3">
                 <SidebarTrigger className="text-muted-foreground" />
-                <h1 className="text-sm font-medium text-muted-foreground hidden sm:block">{title}</h1>
+                <div className="hidden sm:block">
+                  <p className="text-[11px] text-muted-foreground/80">{breadcrumb}</p>
+                  <h1 className="text-sm font-medium text-muted-foreground">{title}</h1>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 {actions}

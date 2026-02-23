@@ -65,7 +65,7 @@ export default function OpportunitiesPage() {
 
   if (loading) {
     return (
-      <DashboardLayout title="Opportunities">
+      <DashboardLayout title="Take Action">
         <div className="rounded-xl border border-border bg-card p-8 text-center">
           <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
@@ -74,7 +74,7 @@ export default function OpportunitiesPage() {
   }
 
   return (
-    <DashboardLayout title="Opportunities">
+    <DashboardLayout title="Take Action">
       <div className="rounded-xl border border-border bg-card p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Trophy className="w-5 h-5 text-primary" />
