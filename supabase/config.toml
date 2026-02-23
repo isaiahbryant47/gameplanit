@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.generate-plan]
 verify_jwt = false
+
+[functions.recompute-readiness]
+verify_jwt = false
+
+[functions.evaluate-unlocks]
+verify_jwt = false
