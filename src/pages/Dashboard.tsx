@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { loadProfile, loadPlan, loadProgress, saveProgress, type ProgressData } from '@/lib/services';
 import { emitCycleStarted } from '@/lib/services/activityService';
+import { recomputeReadinessServer } from '@/lib/services/readinessService';
 import { generateLLMPlan, fetchUserPlan, type StructuredWeek, type StructuredAction } from '@/lib/llmPlanService';
 import { generatePlanWeeksWithResources } from '@/lib/planGenerator';
 import {
@@ -21,8 +22,8 @@ import StudentProfile from '@/components/StudentProfile';
 import KpiSection from '@/components/KpiSection';
 import AdherencePrediction from '@/components/AdherencePrediction';
 import { fetchCareerPillars } from '@/lib/careerService';
-import { evaluateUnlocks, fetchUserUnlocks } from '@/lib/unlockService';
-import { recalculateReadiness, type ReadinessExplanation } from '@/lib/readinessEngine';
+import { fetchUserUnlocks } from '@/lib/unlockService';
+import type { ReadinessExplanation } from '@/lib/readinessEngine';
 import type { CareerPillar, Profile, Plan } from '@/lib/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -138,29 +139,24 @@ export default function Dashboard() {
         pillarMilestoneRates[name] = counts.total > 0 ? Math.round((counts.done / counts.total) * 100) : 0;
       }
 
-      evaluateUnlocks({
+      // Server-side readiness recomputation + unlock evaluation (single round-trip)
+      recomputeReadinessServer({
         userId: user.id,
         careerPathId: careerPathIdForHook,
         cycleNumber,
-        milestoneCompletionRate: milestoneRateInt,
-        engagedPillars,
-      }).then(newUnlocks => {
-        if (!mountedRef.current) return;
-        if (newUnlocks.length > 0) {
-          setHasUnlocks(true);
-          toast.success(`You unlocked ${newUnlocks.length} new ${newUnlocks.length === 1 ? 'opportunity' : 'opportunities'}!`);
-        }
-      });
-
-      recalculateReadiness({
-        userId: user.id,
-        careerPathId: careerPathIdForHook,
-        cycleNumber,
-        pillarMilestoneRates,
         overallMilestoneRate: milestoneRateInt,
+        pillarMilestoneRates,
         acceptedOpportunityPillars: engagedPillars,
-      }).then(data => {
-        if (mountedRef.current) setReadinessData(data);
+        engagedPillars,
+      }).then(result => {
+        if (!mountedRef.current) return;
+        setReadinessData(result);
+        if (result.newUnlocks && result.newUnlocks.length > 0) {
+          setHasUnlocks(true);
+          toast.success(`You unlocked ${result.newUnlocks.length} new ${result.newUnlocks.length === 1 ? 'opportunity' : 'opportunities'}!`);
+        }
+      }).catch(err => {
+        console.error('Server readiness recomputation failed:', err);
       });
     }, 1500);
 
