@@ -128,7 +128,7 @@ export default function SupportPage() {
         <div className="space-y-3">
           {[
             { q: 'What if I fall behind on my plan?', a: "That's okay! Your plan adapts to you. Focus on what you can do this week and the system will adjust recommendations." },
-            { q: 'How do I change my career path?', a: 'Visit the "My Path" page in the sidebar to explore and switch to a different career path anytime.' },
+            { q: 'How do I change my career path?', a: 'Visit the "Discover" page in the sidebar to explore and switch to a different career path anytime.' },
             { q: 'Can I redo a cycle?', a: 'Yes! Once you complete a cycle, you can start a new one that builds on your progress with more challenging activities.' },
             { q: 'Who can see my data?', a: 'Only you and authorized partner administrators can view your progress. Your data is private and secure.' },
           ].map((faq, i) => (
