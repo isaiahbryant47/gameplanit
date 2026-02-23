@@ -14,6 +14,1352 @@ export type Database = {
   }
   public: {
     Tables: {
+      // =================================================================
+      // V2 Schema Tables
+      // =================================================================
+      users: {
+        Row: {
+          id: string
+          email: string | null
+          phone: string | null
+          display_name: string | null
+          role_primary: string
+          dob: string | null
+          zipcode: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          email?: string | null
+          phone?: string | null
+          display_name?: string | null
+          role_primary: string
+          dob?: string | null
+          zipcode?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string | null
+          phone?: string | null
+          display_name?: string | null
+          role_primary?: string
+          dob?: string | null
+          zipcode?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      organizations: {
+        Row: {
+          id: string
+          name: string
+          org_type: string
+          city: string | null
+          state: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          org_type: string
+          city?: string | null
+          state?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          org_type?: string
+          city?: string | null
+          state?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      org_memberships: {
+        Row: {
+          id: string
+          org_id: string
+          user_id: string
+          org_role: string
+          status: string
+          start_at: string
+          end_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          user_id: string
+          org_role: string
+          status?: string
+          start_at?: string
+          end_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          user_id?: string
+          org_role?: string
+          status?: string
+          start_at?: string
+          end_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_memberships_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_memberships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      caregiver_links: {
+        Row: {
+          id: string
+          caregiver_user_id: string
+          student_user_id: string
+          relationship: string | null
+          permission_level: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          caregiver_user_id: string
+          student_user_id: string
+          relationship?: string | null
+          permission_level?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          caregiver_user_id?: string
+          student_user_id?: string
+          relationship?: string | null
+          permission_level?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caregiver_links_caregiver_user_id_fkey"
+            columns: ["caregiver_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caregiver_links_student_user_id_fkey"
+            columns: ["student_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consents: {
+        Row: {
+          id: string
+          user_id: string
+          consent_type: string
+          consented_at: string
+          metadata: Json
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          consent_type: string
+          consented_at?: string
+          metadata?: Json
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          consent_type?: string
+          consented_at?: string
+          metadata?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_profiles: {
+        Row: {
+          user_id: string
+          grade_level: number | null
+          school_name: string | null
+          gpa: number | null
+          experience_level: string | null
+          weekly_hours_available: number | null
+          internet_access: string | null
+          transport_mode: string | null
+          budget_level: string | null
+          work_hours_per_week: number | null
+          caregiving_responsibilities: boolean
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          grade_level?: number | null
+          school_name?: string | null
+          gpa?: number | null
+          experience_level?: string | null
+          weekly_hours_available?: number | null
+          internet_access?: string | null
+          transport_mode?: string | null
+          budget_level?: string | null
+          work_hours_per_week?: number | null
+          caregiving_responsibilities?: boolean
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          grade_level?: number | null
+          school_name?: string | null
+          gpa?: number | null
+          experience_level?: string | null
+          weekly_hours_available?: number | null
+          internet_access?: string | null
+          transport_mode?: string | null
+          budget_level?: string | null
+          work_hours_per_week?: number | null
+          caregiving_responsibilities?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          id: string
+          user_id: string
+          goal_type: string
+          title: string
+          description: string | null
+          target_metric: string | null
+          target_date: string | null
+          constraints_notes: string | null
+          clarity_score: number
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          goal_type: string
+          title: string
+          description?: string | null
+          target_metric?: string | null
+          target_date?: string | null
+          constraints_notes?: string | null
+          clarity_score?: number
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          goal_type?: string
+          title?: string
+          description?: string | null
+          target_metric?: string | null
+          target_date?: string | null
+          constraints_notes?: string | null
+          clarity_score?: number
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goal_tags: {
+        Row: {
+          goal_id: string
+          tag: string
+        }
+        Insert: {
+          goal_id: string
+          tag: string
+        }
+        Update: {
+          goal_id?: string
+          tag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_tags_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journey_templates: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          grade_band: string | null
+          duration_weeks: number
+          created_by_org_id: string | null
+          visibility: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          grade_band?: string | null
+          duration_weeks?: number
+          created_by_org_id?: string | null
+          visibility?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          grade_band?: string | null
+          duration_weeks?: number
+          created_by_org_id?: string | null
+          visibility?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journey_templates_created_by_org_id_fkey"
+            columns: ["created_by_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      milestone_templates: {
+        Row: {
+          id: string
+          journey_template_id: string
+          title: string
+          description: string | null
+          order_index: number
+          success_criteria: string | null
+        }
+        Insert: {
+          id?: string
+          journey_template_id: string
+          title: string
+          description?: string | null
+          order_index: number
+          success_criteria?: string | null
+        }
+        Update: {
+          id?: string
+          journey_template_id?: string
+          title?: string
+          description?: string | null
+          order_index?: number
+          success_criteria?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestone_templates_journey_template_id_fkey"
+            columns: ["journey_template_id"]
+            isOneToOne: false
+            referencedRelation: "journey_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_templates: {
+        Row: {
+          id: string
+          milestone_template_id: string
+          title: string
+          description: string | null
+          task_type: string
+          estimated_minutes: number | null
+          requires_evidence: boolean
+          requires_review: boolean
+          default_priority: number
+          content_ref: Json
+          order_index: number
+        }
+        Insert: {
+          id?: string
+          milestone_template_id: string
+          title: string
+          description?: string | null
+          task_type: string
+          estimated_minutes?: number | null
+          requires_evidence?: boolean
+          requires_review?: boolean
+          default_priority?: number
+          content_ref?: Json
+          order_index: number
+        }
+        Update: {
+          id?: string
+          milestone_template_id?: string
+          title?: string
+          description?: string | null
+          task_type?: string
+          estimated_minutes?: number | null
+          requires_evidence?: boolean
+          requires_review?: boolean
+          default_priority?: number
+          content_ref?: Json
+          order_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_templates_milestone_template_id_fkey"
+            columns: ["milestone_template_id"]
+            isOneToOne: false
+            referencedRelation: "milestone_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_template_tags: {
+        Row: {
+          task_template_id: string
+          tag: string
+        }
+        Insert: {
+          task_template_id: string
+          tag: string
+        }
+        Update: {
+          task_template_id?: string
+          tag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_template_tags_task_template_id_fkey"
+            columns: ["task_template_id"]
+            isOneToOne: false
+            referencedRelation: "task_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plans: {
+        Row: {
+          id: string
+          user_id: string
+          goal_id: string
+          journey_template_id: string
+          org_id: string | null
+          start_date: string
+          end_date: string | null
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          goal_id: string
+          journey_template_id: string
+          org_id?: string | null
+          start_date?: string
+          end_date?: string | null
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          goal_id?: string
+          journey_template_id?: string
+          org_id?: string | null
+          start_date?: string
+          end_date?: string | null
+          status?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plans_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plans_journey_template_id_fkey"
+            columns: ["journey_template_id"]
+            isOneToOne: false
+            referencedRelation: "journey_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plans_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_weeks: {
+        Row: {
+          id: string
+          plan_id: string
+          week_number: number
+          week_start_date: string
+          focus_theme: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          plan_id: string
+          week_number: number
+          week_start_date: string
+          focus_theme?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          plan_id?: string
+          week_number?: number
+          week_start_date?: string
+          focus_theme?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_weeks_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_milestones: {
+        Row: {
+          id: string
+          plan_id: string
+          milestone_template_id: string
+          status: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          plan_id: string
+          milestone_template_id: string
+          status?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          plan_id?: string
+          milestone_template_id?: string
+          status?: string
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_milestones_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_milestones_milestone_template_id_fkey"
+            columns: ["milestone_template_id"]
+            isOneToOne: false
+            referencedRelation: "milestone_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          id: string
+          plan_id: string
+          user_id: string
+          task_template_id: string | null
+          title: string
+          description: string | null
+          task_type: string
+          priority: number
+          due_at: string | null
+          status: string
+          completed_at: string | null
+          exempt_reason: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          plan_id: string
+          user_id: string
+          task_template_id?: string | null
+          title: string
+          description?: string | null
+          task_type: string
+          priority?: number
+          due_at?: string | null
+          status?: string
+          completed_at?: string | null
+          exempt_reason?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          plan_id?: string
+          user_id?: string
+          task_template_id?: string | null
+          title?: string
+          description?: string | null
+          task_type?: string
+          priority?: number
+          due_at?: string | null
+          status?: string
+          completed_at?: string | null
+          exempt_reason?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_task_template_id_fkey"
+            columns: ["task_template_id"]
+            isOneToOne: false
+            referencedRelation: "task_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_dependencies: {
+        Row: {
+          task_id: string
+          depends_on_task_id: string
+        }
+        Insert: {
+          task_id: string
+          depends_on_task_id: string
+        }
+        Update: {
+          task_id?: string
+          depends_on_task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_dependencies_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_dependencies_depends_on_task_id_fkey"
+            columns: ["depends_on_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artifacts: {
+        Row: {
+          id: string
+          user_id: string
+          artifact_type: string
+          title: string
+          content_text: string | null
+          content_url: string | null
+          storage_path: string | null
+          visibility: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          artifact_type: string
+          title: string
+          content_text?: string | null
+          content_url?: string | null
+          storage_path?: string | null
+          visibility?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          artifact_type?: string
+          title?: string
+          content_text?: string | null
+          content_url?: string | null
+          storage_path?: string | null
+          visibility?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifacts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_evidence: {
+        Row: {
+          id: string
+          task_id: string
+          artifact_id: string
+          submitted_at: string
+        }
+        Insert: {
+          id?: string
+          task_id: string
+          artifact_id: string
+          submitted_at?: string
+        }
+        Update: {
+          id?: string
+          task_id?: string
+          artifact_id?: string
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_evidence_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_evidence_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reviews: {
+        Row: {
+          id: string
+          task_id: string
+          reviewer_user_id: string
+          org_id: string | null
+          status: string
+          feedback: string | null
+          created_at: string
+          resolved_at: string | null
+        }
+        Insert: {
+          id?: string
+          task_id: string
+          reviewer_user_id: string
+          org_id?: string | null
+          status?: string
+          feedback?: string | null
+          created_at?: string
+          resolved_at?: string | null
+        }
+        Update: {
+          id?: string
+          task_id?: string
+          reviewer_user_id?: string
+          org_id?: string | null
+          status?: string
+          feedback?: string | null
+          created_at?: string
+          resolved_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_reviewer_user_id_fkey"
+            columns: ["reviewer_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opportunities: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          provider_name: string | null
+          url: string | null
+          mode: string
+          cost_type: string
+          min_grade: number | null
+          max_grade: number | null
+          time_commitment_hours: number | null
+          start_date: string | null
+          end_date: string | null
+          deadline_date: string | null
+          location_name: string | null
+          zipcode: string | null
+          latitude: number | null
+          longitude: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          provider_name?: string | null
+          url?: string | null
+          mode: string
+          cost_type: string
+          min_grade?: number | null
+          max_grade?: number | null
+          time_commitment_hours?: number | null
+          start_date?: string | null
+          end_date?: string | null
+          deadline_date?: string | null
+          location_name?: string | null
+          zipcode?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          provider_name?: string | null
+          url?: string | null
+          mode?: string
+          cost_type?: string
+          min_grade?: number | null
+          max_grade?: number | null
+          time_commitment_hours?: number | null
+          start_date?: string | null
+          end_date?: string | null
+          deadline_date?: string | null
+          location_name?: string | null
+          zipcode?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      opportunity_tags: {
+        Row: {
+          opportunity_id: string
+          tag: string
+        }
+        Insert: {
+          opportunity_id: string
+          tag: string
+        }
+        Update: {
+          opportunity_id?: string
+          tag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_tags_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opportunity_matches: {
+        Row: {
+          id: string
+          user_id: string
+          goal_id: string | null
+          opportunity_id: string
+          score: number
+          reasons: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          goal_id?: string | null
+          opportunity_id: string
+          score: number
+          reasons?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          goal_id?: string | null
+          opportunity_id?: string
+          score?: number
+          reasons?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_matches_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_matches_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_matches_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_opportunities: {
+        Row: {
+          task_id: string
+          opportunity_id: string
+        }
+        Insert: {
+          task_id: string
+          opportunity_id: string
+        }
+        Update: {
+          task_id?: string
+          opportunity_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_opportunities_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_opportunities_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_items: {
+        Row: {
+          id: string
+          user_id: string
+          item_type: string
+          ref_id: string | null
+          title: string
+          subtitle: string | null
+          why_this: string | null
+          rank_score: number
+          expires_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          item_type: string
+          ref_id?: string | null
+          title: string
+          subtitle?: string | null
+          why_this?: string | null
+          rank_score?: number
+          expires_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          item_type?: string
+          ref_id?: string | null
+          title?: string
+          subtitle?: string | null
+          why_this?: string | null
+          rank_score?: number
+          expires_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_items_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          id: string
+          user_id: string
+          org_id: string | null
+          event_type: string
+          entity_type: string | null
+          entity_id: string | null
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          org_id?: string | null
+          event_type: string
+          entity_type?: string | null
+          entity_id?: string | null
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          org_id?: string | null
+          event_type?: string
+          entity_type?: string | null
+          entity_id?: string | null
+          metadata?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outcomes: {
+        Row: {
+          id: string
+          user_id: string
+          goal_id: string | null
+          outcome_type: string
+          title: string
+          description: string | null
+          occurred_on: string
+          verification_status: string
+          verified_by_user_id: string | null
+          evidence_artifact_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          goal_id?: string | null
+          outcome_type: string
+          title: string
+          description?: string | null
+          occurred_on: string
+          verification_status?: string
+          verified_by_user_id?: string | null
+          evidence_artifact_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          goal_id?: string | null
+          outcome_type?: string
+          title?: string
+          description?: string | null
+          occurred_on?: string
+          verification_status?: string
+          verified_by_user_id?: string | null
+          evidence_artifact_id?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outcomes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outcomes_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outcomes_verified_by_user_id_fkey"
+            columns: ["verified_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outcomes_evidence_artifact_id_fkey"
+            columns: ["evidence_artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_reporting_policies: {
+        Row: {
+          org_id: string
+          allow_individual_level: boolean
+          minimum_aggregation_n: number
+          created_at: string
+        }
+        Insert: {
+          org_id: string
+          allow_individual_level?: boolean
+          minimum_aggregation_n?: number
+          created_at?: string
+        }
+        Update: {
+          org_id?: string
+          allow_individual_level?: boolean
+          minimum_aggregation_n?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_reporting_policies_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // =================================================================
+      // Legacy tables (renamed from V1 schema, preserved for data)
+      // =================================================================
+      plans_legacy: {
+        Row: {
+          career_path_id: string | null
+          created_at: string
+          cycle_number: number
+          goal_domain: string | null
+          id: string
+          outcome_statement: string | null
+          pathway_id: string | null
+          primary_pillar_focus: string[] | null
+          profile_snapshot: Json
+          stage: string
+          target_date: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          career_path_id?: string | null
+          created_at?: string
+          cycle_number?: number
+          goal_domain?: string | null
+          id?: string
+          outcome_statement?: string | null
+          pathway_id?: string | null
+          primary_pillar_focus?: string[] | null
+          profile_snapshot?: Json
+          stage?: string
+          target_date?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          career_path_id?: string | null
+          created_at?: string
+          cycle_number?: number
+          goal_domain?: string | null
+          id?: string
+          outcome_statement?: string | null
+          pathway_id?: string | null
+          primary_pillar_focus?: string[] | null
+          profile_snapshot?: Json
+          stage?: string
+          target_date?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plans_legacy_career_path_id_fkey"
+            columns: ["career_path_id"]
+            isOneToOne: false
+            referencedRelation: "career_paths"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plans_legacy_pathway_id_fkey"
+            columns: ["pathway_id"]
+            isOneToOne: false
+            referencedRelation: "pathways"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_weeks_legacy: {
+        Row: {
+          actions: Json
+          created_at: string
+          focus: string
+          id: string
+          milestone: string
+          plan_id: string
+          week_number: number
+        }
+        Insert: {
+          actions?: Json
+          created_at?: string
+          focus: string
+          id?: string
+          milestone: string
+          plan_id: string
+          week_number: number
+        }
+        Update: {
+          actions?: Json
+          created_at?: string
+          focus?: string
+          id?: string
+          milestone?: string
+          plan_id?: string
+          week_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_weeks_legacy_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans_legacy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opportunities_legacy: {
+        Row: {
+          created_at: string
+          description: string
+          domain: Database["public"]["Enums"]["goal_domain"]
+          id: string
+          is_active: boolean
+          next_step_cta_label: string
+          next_step_url: string | null
+          requirements_json: Json
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          domain: Database["public"]["Enums"]["goal_domain"]
+          id?: string
+          is_active?: boolean
+          next_step_cta_label?: string
+          next_step_url?: string | null
+          requirements_json?: Json
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          domain?: Database["public"]["Enums"]["goal_domain"]
+          id?: string
+          is_active?: boolean
+          next_step_cta_label?: string
+          next_step_url?: string | null
+          requirements_json?: Json
+          title?: string
+        }
+        Relationships: []
+      }
+      // =================================================================
+      // Existing V1 tables (unchanged)
+      // =================================================================
       career_domains: {
         Row: {
           created_at: string
@@ -202,42 +1548,6 @@ export type Database = {
           },
         ]
       }
-      opportunities: {
-        Row: {
-          created_at: string
-          description: string
-          domain: Database["public"]["Enums"]["goal_domain"]
-          id: string
-          is_active: boolean
-          next_step_cta_label: string
-          next_step_url: string | null
-          requirements_json: Json
-          title: string
-        }
-        Insert: {
-          created_at?: string
-          description: string
-          domain: Database["public"]["Enums"]["goal_domain"]
-          id?: string
-          is_active?: boolean
-          next_step_cta_label?: string
-          next_step_url?: string | null
-          requirements_json?: Json
-          title: string
-        }
-        Update: {
-          created_at?: string
-          description?: string
-          domain?: Database["public"]["Enums"]["goal_domain"]
-          id?: string
-          is_active?: boolean
-          next_step_cta_label?: string
-          next_step_url?: string | null
-          requirements_json?: Json
-          title?: string
-        }
-        Relationships: []
-      }
       partner_analytics_snapshot: {
         Row: {
           computed_at: string
@@ -280,10 +1590,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "pathway_opportunities_opportunity_id_fkey"
+            foreignKeyName: "pathway_opportunities_legacy_opportunity_id_fkey"
             columns: ["opportunity_id"]
             isOneToOne: false
-            referencedRelation: "opportunities"
+            referencedRelation: "opportunities_legacy"
             referencedColumns: ["id"]
           },
           {
@@ -327,107 +1637,6 @@ export type Database = {
           title?: string
         }
         Relationships: []
-      }
-      plan_weeks: {
-        Row: {
-          actions: Json
-          created_at: string
-          focus: string
-          id: string
-          milestone: string
-          plan_id: string
-          week_number: number
-        }
-        Insert: {
-          actions?: Json
-          created_at?: string
-          focus: string
-          id?: string
-          milestone: string
-          plan_id: string
-          week_number: number
-        }
-        Update: {
-          actions?: Json
-          created_at?: string
-          focus?: string
-          id?: string
-          milestone?: string
-          plan_id?: string
-          week_number?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "plan_weeks_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "plans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      plans: {
-        Row: {
-          career_path_id: string | null
-          created_at: string
-          cycle_number: number
-          goal_domain: string | null
-          id: string
-          outcome_statement: string | null
-          pathway_id: string | null
-          primary_pillar_focus: string[] | null
-          profile_snapshot: Json
-          stage: string
-          target_date: string | null
-          title: string
-          user_id: string
-        }
-        Insert: {
-          career_path_id?: string | null
-          created_at?: string
-          cycle_number?: number
-          goal_domain?: string | null
-          id?: string
-          outcome_statement?: string | null
-          pathway_id?: string | null
-          primary_pillar_focus?: string[] | null
-          profile_snapshot?: Json
-          stage?: string
-          target_date?: string | null
-          title: string
-          user_id: string
-        }
-        Update: {
-          career_path_id?: string | null
-          created_at?: string
-          cycle_number?: number
-          goal_domain?: string | null
-          id?: string
-          outcome_statement?: string | null
-          pathway_id?: string | null
-          primary_pillar_focus?: string[] | null
-          profile_snapshot?: Json
-          stage?: string
-          target_date?: string | null
-          title?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "plans_career_path_id_fkey"
-            columns: ["career_path_id"]
-            isOneToOne: false
-            referencedRelation: "career_paths"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plans_pathway_id_fkey"
-            columns: ["pathway_id"]
-            isOneToOne: false
-            referencedRelation: "pathways"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       prediction_snapshots: {
         Row: {
@@ -901,10 +2110,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "user_unlocked_opportunities_opportunity_id_fkey"
+            foreignKeyName: "user_unlocked_opportunities_legacy_opportunity_id_fkey"
             columns: ["opportunity_id"]
             isOneToOne: false
-            referencedRelation: "opportunities"
+            referencedRelation: "opportunities_legacy"
             referencedColumns: ["id"]
           },
         ]
@@ -950,7 +2159,41 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_org_plan_completion: {
+        Row: {
+          org_id: string
+          org_name: string
+          student_count: number
+          total_plans: number
+          completed_plans: number
+          completion_rate_pct: number | null
+        }
+        Relationships: []
+      }
+      v_org_task_completion: {
+        Row: {
+          org_id: string
+          org_name: string
+          student_count: number
+          total_tasks: number
+          completed_tasks: number
+          approved_tasks: number
+          completion_rate_pct: number | null
+        }
+        Relationships: []
+      }
+      v_org_outcomes: {
+        Row: {
+          org_id: string
+          org_name: string
+          students_with_outcomes: number
+          total_outcomes: number
+          verified_outcomes: number
+          outcome_type: string | null
+          type_count: number
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
