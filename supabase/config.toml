@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.evaluate-unlocks]
 verify_jwt = false
+
+[functions.build-analytics-snapshot]
+verify_jwt = false
