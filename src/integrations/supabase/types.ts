@@ -238,6 +238,24 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_analytics_snapshot: {
+        Row: {
+          computed_at: string
+          id: string
+          snapshot_json: Json
+        }
+        Insert: {
+          computed_at?: string
+          id?: string
+          snapshot_json?: Json
+        }
+        Update: {
+          computed_at?: string
+          id?: string
+          snapshot_json?: Json
+        }
+        Relationships: []
+      }
       pathway_opportunities: {
         Row: {
           created_at: string

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchAggregatedAnalytics, type AggregatedAnalytics } from '@/lib/predict/analyticsService';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie } from 'recharts';
-import { BrainCircuit, Loader2, AlertTriangle, Users, Compass, Map } from 'lucide-react';
+import { BrainCircuit, Loader2, AlertTriangle, Users, Compass, Map, Shield } from 'lucide-react';
 
 export default function PartnerAnalytics() {
   const [data, setData] = useState<AggregatedAnalytics | null>(null);
@@ -27,12 +27,13 @@ export default function PartnerAnalytics() {
     return (
       <div className="rounded-xl border border-border bg-card p-8 text-center">
         <BrainCircuit className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-        <p className="text-sm text-muted-foreground">No prediction data yet. Analytics populate as students use their plans.</p>
+        <p className="text-sm text-muted-foreground">No analytics data yet. Snapshots are built automatically as students use the platform.</p>
       </div>
     );
   }
 
   const formatPct = (v: number) => `${Math.round(v * 100)}%`;
+  const rd = data.readinessDistribution;
 
   return (
     <div className="space-y-4">
@@ -60,6 +61,33 @@ export default function PartnerAnalytics() {
           <p className="text-2xl font-bold text-destructive">{Math.round(data.overall.atRiskPct)}%</p>
         </div>
       </div>
+
+      {/* Readiness Distribution (new Phase 4) */}
+      {rd && rd.totalScored > 0 && (
+        <div className="rounded-xl border border-border bg-card shadow-sm p-5">
+          <h3 className="text-sm font-semibold text-card-foreground mb-3 flex items-center gap-1.5">
+            <Shield className="w-4 h-4 text-primary" /> Career Readiness Distribution
+          </h3>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-lg border border-border p-3 text-center">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Tier 1 (0-33%)</p>
+              <p className="text-xl font-bold text-card-foreground">{rd.tier1}</p>
+              <p className="text-[10px] text-muted-foreground">Emerging</p>
+            </div>
+            <div className="rounded-lg border border-border p-3 text-center">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Tier 2 (34-66%)</p>
+              <p className="text-xl font-bold text-primary">{rd.tier2}</p>
+              <p className="text-[10px] text-muted-foreground">Growing</p>
+            </div>
+            <div className="rounded-lg border border-border p-3 text-center">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Tier 3 (67%+)</p>
+              <p className="text-xl font-bold text-success">{rd.tier3}</p>
+              <p className="text-[10px] text-muted-foreground">Ready</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2">{rd.totalScored} students with readiness scores</p>
+        </div>
+      )}
 
       {/* By Goal Domain */}
       {data.byDomain.length > 0 && (
