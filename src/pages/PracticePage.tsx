@@ -42,7 +42,7 @@ export default function PracticePage() {
     return groups;
   }, [structuredWeeks, plan, progress]);
 
-  if (!user) return <Navigate to="/login" />;
+  
 
   const pillars = Object.keys(pillarGroups);
   const filteredPillars = filter === 'all' ? pillars : pillars.filter(p => p === filter);

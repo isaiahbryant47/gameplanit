@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
+import RequireAuth from './components/RequireAuth';
 import Index from './pages/Index';
 import Onboarding from './pages/Onboarding';
 import Recommendations from './pages/Recommendations';
@@ -29,19 +30,20 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/recommendations" element={<Recommendations />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/cycle" element={<CyclePage />} />
-          <Route path="/opportunities" element={<OpportunitiesPage />} />
-          <Route path="/practice" element={<PracticePage />} />
-          <Route path="/certs" element={<CertsProofPage />} />
-          <Route path="/support" element={<SupportPage />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/explore-careers" element={<ExploreCareers />} />
-          <Route path="/partner" element={<Partner />} />
-          <Route path="/partner/resources" element={<ResourceAdmin />} />
+          {/* Protected routes */}
+          <Route path="/recommendations" element={<RequireAuth><Recommendations /></RequireAuth>} />
+          <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+          <Route path="/cycle" element={<RequireAuth><CyclePage /></RequireAuth>} />
+          <Route path="/opportunities" element={<RequireAuth><OpportunitiesPage /></RequireAuth>} />
+          <Route path="/practice" element={<RequireAuth><PracticePage /></RequireAuth>} />
+          <Route path="/certs" element={<RequireAuth><CertsProofPage /></RequireAuth>} />
+          <Route path="/support" element={<RequireAuth><SupportPage /></RequireAuth>} />
+          <Route path="/explore-careers" element={<RequireAuth><ExploreCareers /></RequireAuth>} />
+          <Route path="/partner" element={<RequireAuth><Partner /></RequireAuth>} />
+          <Route path="/partner/resources" element={<RequireAuth><ResourceAdmin /></RequireAuth>} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

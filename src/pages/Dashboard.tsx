@@ -1,4 +1,4 @@
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { storage } from '@/lib/storage';
 import { generateLLMPlan, fetchUserPlan, type StructuredWeek, type StructuredAction } from '@/lib/llmPlanService';
@@ -280,7 +280,7 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  if (!user) return <Navigate to="/login" />;
+  // Auth guard handled by RequireAuth wrapper
 
   if (dataLoading || !profile || !plan) {
     return (

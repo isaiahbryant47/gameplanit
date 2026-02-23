@@ -68,7 +68,7 @@ export default function CertsProofPage() {
     }).then(setReadinessData);
   }, [user?.id, careerPathId, cycleNumber]);
 
-  if (!user) return <Navigate to="/login" />;
+  
 
   return (
     <DashboardLayout title="Certs & Proof">
