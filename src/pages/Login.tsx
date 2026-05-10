@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
 type Step = 'phone' | 'code';
+type AuthMode = 'email' | 'phone';
 
 function normalizePhone(raw: string): string {
   const trimmed = raw.trim().replace(/[\s\-().]/g, '');
@@ -14,19 +15,47 @@ function normalizePhone(raw: string): string {
 }
 
 export default function Login() {
+  const [authMode, setAuthMode] = useState<AuthMode>('email');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<Step>('phone');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, login } = useAuth();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate(user.role === 'partner_admin' ? '/partner' : '/dashboard', { replace: true });
+    }
+  }, [authLoading, navigate, user]);
+
   if (authLoading) return null;
-  if (user) {
-    navigate(user.role === 'partner_admin' ? '/partner' : '/dashboard', { replace: true });
-    return null;
-  }
+  if (user) return null;
+
+  const handleEmailLogin = async () => {
+    setError('');
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password) {
+      setError('Enter your email and password.');
+      return;
+    }
+
+    setLoading(true);
+    const result = await login(normalizedEmail, password);
+    setLoading(false);
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    if (result.user) {
+      navigate(result.user.role === 'partner_admin' ? '/partner' : '/dashboard', { replace: true });
+    }
+  };
 
   const handleSendCode = async () => {
     setError('');
@@ -84,16 +113,71 @@ export default function Login() {
       <div className="w-full max-w-md rounded-xl bg-card border border-border p-8 shadow-sm space-y-5">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-card-foreground">
-            {step === 'phone' ? 'Sign in with your phone' : 'Enter your code'}
+            {authMode === 'email' ? 'Sign in to your account' : step === 'phone' ? 'Sign in with your phone' : 'Enter your code'}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {step === 'phone'
+            {authMode === 'email'
+              ? 'Use the email and password you created your account with.'
+              : step === 'phone'
               ? "We'll text you a 6-digit code to sign in."
               : `Code sent to ${phone}`}
           </p>
         </div>
 
-        {step === 'phone' ? (
+        <div className="grid grid-cols-2 rounded-lg border border-border bg-muted p-1">
+          <button
+            type="button"
+            onClick={() => { setAuthMode('email'); setError(''); }}
+            className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${authMode === 'email' ? 'bg-card text-card-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Email
+          </button>
+          <button
+            type="button"
+            onClick={() => { setAuthMode('phone'); setStep('phone'); setError(''); }}
+            className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${authMode === 'phone' ? 'bg-card text-card-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Phone
+          </button>
+        </div>
+
+        {authMode === 'email' ? (
+          <form
+            className="space-y-3"
+            onSubmit={(e) => { e.preventDefault(); void handleEmailLogin(); }}
+          >
+            <input
+              className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              type="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <input
+              className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <button
+              type="submit"
+              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+              disabled={loading}
+            >
+              {loading ? 'Signing in…' : 'Sign in'}
+            </button>
+            <div className="text-center">
+              <Link to="/forgot-password" className="text-sm text-primary font-medium hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+          </form>
+        ) : step === 'phone' ? (
           <form
             className="space-y-3"
             onSubmit={(e) => { e.preventDefault(); void handleSendCode(); }}
