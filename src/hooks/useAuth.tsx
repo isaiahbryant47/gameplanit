@@ -58,47 +58,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // On mount: check existing session
   useEffect(() => {
     let cancelled = false;
+    let sessionRequestId = 0;
+
+    const applySession = async (sessionUser: SupabaseUser | null) => {
+      const requestId = ++sessionRequestId;
+      try {
+        if (!sessionUser) {
+          if (!cancelled && requestId === sessionRequestId) setUser(null);
+          return;
+        }
+
+        const authUser = await buildAuthUser(sessionUser);
+        if (!cancelled && requestId === sessionRequestId) setUser(authUser);
+      } catch (e) {
+        console.error('applySession error:', e);
+        if (!cancelled && requestId === sessionRequestId) setUser(null);
+      } finally {
+        if (!cancelled && requestId === sessionRequestId) setLoading(false);
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        // Defer role/profile lookups so the auth client can finish persisting the session first.
+        setTimeout(() => {
+          if (!cancelled) void applySession(session?.user ?? null);
+        }, 0);
+      }
+    );
 
     const initSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (cancelled) return;
-
-        if (session?.user) {
-          const authUser = await buildAuthUser(session.user);
-          if (!cancelled) setUser(authUser);
-        }
+        await applySession(session?.user ?? null);
       } catch (e) {
         console.error('initSession error:', e);
-      } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
     void initSession();
-
-    // Listen for sign-out and token refresh events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (cancelled) return;
-
-        if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setLoading(false);
-        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          // Re-fetch role on token refresh in case it changed
-          try {
-            const authUser = await buildAuthUser(session.user);
-            if (!cancelled) setUser(authUser);
-          } catch {
-            // keep existing user state
-          }
-        }
-      }
-    );
 
     return () => {
       cancelled = true;
